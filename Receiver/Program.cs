@@ -12,7 +12,7 @@ namespace Transfer
                 case "-a":
                     receiver.ActivateListening();
                     break;
-                default:
+                case "":
                     break;
             }
         }

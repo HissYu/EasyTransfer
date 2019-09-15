@@ -14,56 +14,34 @@ namespace Transfer
     }
     class Receiver : Core
     {
-        //private readonly UdpClient UdpClient = new UdpClient();
-
-        //MessageRedirect RedirectList;
-        //IDictionary<ThreadType, Thread> BackgroundThreads;
-
-        //receiver
-        //public void UdpListenBackgroud(IPAddress addr)
-        //{
-        //    //Thread background = null;
-        //    Action listener = () =>
-        //    {
-        //        BackgroundThreads.Add(ThreadType.UdpListen, Thread.CurrentThread);
-        //        IPEndPoint listenEP = new IPEndPoint(addr, OutPort);
-        //        while (true)
-        //        {
-        //            byte[] rec = UdpClient.Receive(ref listenEP);
-        //            if (Message.TryParse(rec, out Message res))
-        //            {
-        //                RedirectList(new Redirection(res));
-        //            }
-        //        }
-        //    };
-        //    listener.BeginInvoke(null, null);
-        //}
-
         public void ActivateListening()
         {
             IPAddress localAddr = IPAddress.Parse(Utils.GetLocalIPAddress());
             IPAddress remoteAddr = null;
             Message message = null;
 
-            try
+            while (true)
             {
                 UdpMulticastReceive((msg) => msg.Type == MsgType.Info,
-                (msg) => { remoteAddr = msg.IP; message = msg; });
-                Thread.Sleep(10);
+                    (msg) => { remoteAddr = msg.IP; message = msg; });
                 UdpMulticastSend(new Message { IP = localAddr, Pin = message.Pin });
-                UdpReceive(new IPEndPoint(remoteAddr, OutPort),
-                    (msg) => msg.Type == MsgType.Key,
-                    (msg) => { message = msg; });
-                Thread.Sleep(500);
+                try
+                {
+                    CallWithTimeout(() =>
+                    {
+                        UdpReceive(new IPEndPoint(remoteAddr, OutPort),
+                            (msg) => msg.Type == MsgType.Key,
+                            (msg) => message = msg);
+                    }, Timeout);
+                }
+                catch (OperationCanceledException)
+                {
+                    Console.WriteLine("Connection request received, but timeout encountered when getting confirm. ");
+                    continue;
+                }
                 UdpSend(new IPEndPoint(remoteAddr, InPort), message);
                 SaveDevice(message.Key, remoteAddr.ToString());
-            }
-            catch (SocketException e)
-            {
-                Console.WriteLine(e.Message);
-                Console.WriteLine(e.ErrorCode);
-                Console.WriteLine(e.SocketErrorCode);
-                throw e;
+                break;
             }
         }
     }

@@ -6,6 +6,8 @@ using System.Runtime.Serialization;
 using System.Net.Sockets;
 using System.Runtime.Serialization.Formatters.Binary;
 using System.Runtime.InteropServices;
+using System.Security.Cryptography;
+using System.IO;
 
 namespace Transfer
 {
@@ -29,7 +31,7 @@ namespace Transfer
         long Size { get; set; }
         int PackSize { get; set; }
         long PackCount { get; set; }
-        string Hash { get; set; }
+        byte[] Hash { get; set; }
         string Filename { get; set; }
     }
     interface IMessageContinue
@@ -50,57 +52,14 @@ namespace Transfer
     {
         Info, Key, Confirm, Meta, Continue, File, Text, Invalid
     }
-    /* of no use
-    //class Message2
-    //{
-    //    static public Message2<S> FromBytes<S>(byte[] bytes)
-    //    {
-    //        int len = bytes.Length;
-    //        IntPtr ptr = Marshal.AllocHGlobal(len);
-    //        Marshal.Copy(bytes, 0, ptr, len);
-    //        Message2<S> msg = Marshal.PtrToStructure<Message2<S>>(ptr);
-    //        Marshal.FreeHGlobal(ptr);
-    //        return msg;
-    //    }
-    //    static public bool TryFromBytes<S>(byte[] bytes, out Message2<S> msg)
-    //    {
-    //        try
-    //        {
-    //            msg = FromBytes<S>(bytes);
-    //            return true;
-    //        }
-    //        catch (Exception)
-    //        {
-    //            msg = new Message2<S>();
-    //            return false;
-    //        }
-    //    }
-    //}
-    //class Message2<T> : Message2
-    //{
-    //    //readonly byte[] head = Encoding.Default.GetBytes("Tr@nsfer");
-    //    public MsgType Type;
-    //    public T MessageBody;
-    //    public byte[] GetBytes()
-    //    {
-    //        int len = Marshal.SizeOf(this);
-    //        byte[] bs = new byte[len];
-    //        IntPtr ptr = Marshal.AllocHGlobal(len);
-    //        Marshal.StructureToPtr(this, ptr, false);
-    //        Marshal.Copy(ptr, bs, 0, len);
-    //        Marshal.FreeHGlobal(ptr);
-    //        //Span<byte> sb = bs;
-    //        return bs;
-    //    }
-    //}
-    */
+   
     public class Message : IMessageConfirm, IMessageContinue, IMessageFile, IMessageInfo, IMessageKey, IMessageMeta, IMessageText
     {
         public string Text { get; set; }
         public long Size { get; set; }
         public int PackSize { get; set; }
         public long PackCount { get; set; }
-        public string Hash { get; set; }
+        public byte[] Hash { get; set; }
         public string Filename { get; set; }
         public string Key { get; set; }
         public IPAddress IP { get; set; }
@@ -133,7 +92,7 @@ namespace Transfer
                 case 2:
                     return new Message { IP = Utils.BtoIP(bs.Slice(1, 4).ToArray()), SemiKey = Utils.BtoString(bs.Slice(5).ToArray()) };
                 case 3:
-                    return new Message { Size = Utils.BtoLong(bs.Slice(1, 8).ToArray()), PackSize = Utils.BtoInt(bs.Slice(9, 4).ToArray()), PackCount = Utils.BtoLong(bs.Slice(13, 8).ToArray()), Hash = Utils.BtoString(bs.Slice(21, 256).ToArray()), Filename = Utils.BtoString(bs.Slice(277).ToArray()) };
+                    return new Message { Size = Utils.BtoLong(bs.Slice(1, 8).ToArray()), PackSize = Utils.BtoInt(bs.Slice(9, 4).ToArray()), PackCount = Utils.BtoLong(bs.Slice(13, 8).ToArray()), Hash = bs.Slice(21, 256).ToArray(), Filename = Utils.BtoString(bs.Slice(277).ToArray()) };
                 case 4:
                     return new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()) };
                 case 5:
@@ -143,6 +102,14 @@ namespace Transfer
                 default:
                     throw new ArgumentException("Invalid protocol.");
             }
+        }
+        public static Message CreateMeta(string filename, int packSize, out byte[] data)
+        {
+            data = File.ReadAllBytes(filename);
+            byte[] hash = null;
+            using (SHA256 s = SHA256.Create())
+                hash = s.ComputeHash(data);
+            return new Message { Filename = filename, Size = data.Length, PackSize = packSize, PackCount = (long)Math.Ceiling((double)data.Length / packSize), Hash = hash };
         }
         public static bool TryParse(byte[] src, out Message message)
         {
@@ -185,7 +152,7 @@ namespace Transfer
                     Array.Copy(Utils.GetBytes(Size), 0, bs, 1, 8);
                     Array.Copy(Utils.GetBytes(PackSize), 0, bs, 9, 4);
                     Array.Copy(Utils.GetBytes(PackCount), 0, bs, 13, 8);
-                    Array.Copy(Utils.GetBytes(Hash), 0, bs, 21, 256);
+                    Array.Copy(Hash, 0, bs, 21, 256);
                     Array.Copy(Utils.GetBytes(Filename), 0, bs, 277, Filename.Length);
                     return bs;
                 case MsgType.Continue:
