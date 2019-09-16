@@ -14,7 +14,6 @@ namespace Transfer
     #region Message Structs
     interface IMessageInfo
     {
-        IPAddress IP { get; set; }
         int Pin { get; set; }
     }
     interface IMessageKey
@@ -23,7 +22,6 @@ namespace Transfer
     }
     interface IMessageConfirm
     {
-        IPAddress IP { get; set; }
         string SemiKey { get; set; }
     }
     interface IMessageMeta
@@ -62,7 +60,6 @@ namespace Transfer
         public byte[] Hash { get; set; }
         public string Filename { get; set; }
         public string Key { get; set; }
-        public IPAddress IP { get; set; }
         public int Pin { get; set; }
         public long PackID { get; set; }
         public byte[] Data { get; set; }
@@ -71,8 +68,8 @@ namespace Transfer
         public MsgType Type
         {
             get =>
-                IP != null ?
-                    (SemiKey != null ? MsgType.Confirm : MsgType.Info) :
+                SemiKey != null ? MsgType.Confirm : 
+                Pin!=0 ? MsgType.Info :
                 Key != null ? MsgType.Key :
                 PackID != 0 ?
                     (Data != null ? MsgType.File : MsgType.Continue) :
@@ -86,11 +83,11 @@ namespace Transfer
             switch (src[0])
             {
                 case 0:
-                    return new Message { IP = Utils.BtoIP(bs.Slice(1, 4).ToArray()), Pin = (int)Utils.BtoNum(bs.Slice(5, 3).ToArray(), 3) };
+                    return new Message { Pin = (int)Utils.BtoNum(bs.Slice(1, 3).ToArray(), 3) };
                 case 1:
                     return new Message { Key = Utils.BtoString(bs.Slice(1).ToArray()) };
                 case 2:
-                    return new Message { IP = Utils.BtoIP(bs.Slice(1, 4).ToArray()), SemiKey = Utils.BtoString(bs.Slice(5).ToArray()) };
+                    return new Message { SemiKey = Utils.BtoString(bs.Slice(1).ToArray()) };
                 case 3:
                     return new Message { Size = Utils.BtoLong(bs.Slice(1, 8).ToArray()), PackSize = Utils.BtoInt(bs.Slice(9, 4).ToArray()), PackCount = Utils.BtoLong(bs.Slice(13, 8).ToArray()), Hash = bs.Slice(21, 256).ToArray(), Filename = Utils.BtoString(bs.Slice(277).ToArray()) };
                 case 4:
@@ -130,10 +127,9 @@ namespace Transfer
             switch (Type)
             {
                 case MsgType.Info:
-                    bs = new byte[1 + 4 + 3];
+                    bs = new byte[1 + 3];
                     bs[0] = 0;
-                    Array.Copy(IP.GetAddressBytes(), 0, bs, 1, 4);
-                    Array.Copy(Utils.GetBytes(Pin, 3), 0, bs, 5, 3);
+                    Array.Copy(Utils.GetBytes(Pin, 3), 0, bs, 1, 3);
                     return bs;
                 case MsgType.Key:
                     bs = new byte[Key.Length + 1];
@@ -141,10 +137,9 @@ namespace Transfer
                     Array.Copy(Utils.GetBytes(Key), 0, bs, 1, Key.Length);
                     return bs;
                 case MsgType.Confirm:
-                    bs = new byte[5 + SemiKey.Length];
+                    bs = new byte[1 + SemiKey.Length];
                     bs[0] = 2;
-                    Array.Copy(IP.GetAddressBytes(), 0, bs, 1, 4);
-                    Array.Copy(Utils.GetBytes(SemiKey), 0, bs, 5, SemiKey.Length);
+                    Array.Copy(Utils.GetBytes(SemiKey), 0, bs, 1, SemiKey.Length);
                     return bs;
                 case MsgType.Meta:
                     bs = new byte[1 + 8 + 8 + 4 + 256 + Filename.Length];
@@ -182,11 +177,11 @@ namespace Transfer
             switch (Type)
             {
                 case MsgType.Info:
-                    return $" (Obj) IP: {IP.ToString()}, Pin: {Pin}";
+                    return $" (Obj) Pin: {Pin}";
                 case MsgType.Key:
                     return $" (Obj) Key: {Key}";
                 case MsgType.Confirm:
-                    return $" (Obj) IP: {IP.ToString()}, SemiKey: {SemiKey}";
+                    return $" (Obj) SemiKey: {SemiKey}";
                 case MsgType.Meta:
                     return $" (Obj) Filename: {Filename}, Size: {Size} bytes, PackCount: {PackCount}, PackSize: {PackSize} bytes\n (Obj) Hash: {Hash}";
                 case MsgType.Continue:

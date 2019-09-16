@@ -27,10 +27,11 @@ namespace Transfer
     }
     public class Core
     {
-        protected int InPort = 37384;
-        protected int OutPort = 38384;
-        protected int MulticastPort = 37484;
-        protected int Timeout = 5000;
+        protected const int ReceiverPort = 37384;
+        protected const int SenderPort = 38384;
+        protected const int TransferPort = 37484;
+        protected readonly int PortUsed;
+        protected const int Timeout = 5000;
         protected readonly IPAddress MulticastAddr = IPAddress.Parse("234.2.3.4");
         protected readonly IPAddress LocalAddr = IPAddress.Parse(Utils.GetLocalIPAddress());
 
@@ -53,18 +54,18 @@ namespace Transfer
         protected void UdpSend(IPEndPoint remoteEP, Message msg)
         {
             byte[] bs = msg.ToBytes();
-            using (UdpClient client = new UdpClient(OutPort))
+            using (UdpClient client = new UdpClient(PortUsed))
             {
                 client.Send(bs, bs.Length, remoteEP);
                 //DEBUG
                 Console.WriteLine("Message:\n{0}\nSent to {1}:{2}", msg, remoteEP.Address.ToString(), remoteEP.Port);
             }
         }
-        protected void UdpReceive(IPEndPoint remoteEP, Predicate<Message> condition, Action<Message> callback)
+        protected void UdpReceive(ref IPEndPoint remoteEP, Predicate<Message> condition, Action<Message> callback)
         {
             while (true)
             {
-                using (UdpClient client = new UdpClient(InPort))
+                using (UdpClient client = new UdpClient(PortUsed))
                 {
                     byte[] receive = client.Receive(ref remoteEP);
                     if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
@@ -79,22 +80,22 @@ namespace Transfer
         }
         protected void UdpMulticastSend(Message message)
         {
-            IPEndPoint multicastEP = new IPEndPoint(MulticastAddr, InPort);
+            IPEndPoint multicastEP = new IPEndPoint(MulticastAddr, PortUsed);
             UdpSend(multicastEP, message);
         }
-        protected void UdpMulticastReceive(Predicate<Message> condition, Action<Message> callback)
+        protected void UdpMulticastReceive(ref IPEndPoint remoteEP ,Predicate<Message> condition, Action<Message> callback)
         {
             while (true)
             {
-                using (UdpClient client = new UdpClient(InPort))
+                using (UdpClient client = new UdpClient(PortUsed))
                 {
                     client.JoinMulticastGroup(MulticastAddr);
-                    IPEndPoint multicastEP = new IPEndPoint(MulticastAddr, OutPort);
-                    byte[] receive = client.Receive(ref multicastEP);
+                    //IPEndPoint multicastEP = new IPEndPoint(MulticastAddr, SenderPort);
+                    byte[] receive = client.Receive(ref remoteEP);
                     if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
                     {
                         //DEBUG
-                        Console.WriteLine("Message:\n{0}\nReceive from {1}:{2}", rMessage, multicastEP.Address.ToString(), multicastEP.Port);
+                        Console.WriteLine("Message:\n{0}\nReceive from {1}:{2}", rMessage, remoteEP.Address.ToString(), remoteEP.Port);
                         callback(rMessage);
                         return;
                     }
@@ -105,9 +106,44 @@ namespace Transfer
         {
             using (StreamWriter sw = new StreamWriter("devices"))
             {
-                Console.WriteLine("Device name: ");
-                string name = Console.ReadLine();
-                sw.Write($"{(name == "" ? "unamed device" : name)}" + ',' + lastAddr + ',' + $@"{key}" + '\n');
+                string name = null;
+                while (true)
+                {
+                    Console.Write("Device name: ");
+                    name = Console.ReadLine();
+                    if (!ReadDevices().Exists(d=>d.Name==name))
+                    {
+                        break;
+                    }
+                    Console.Error.WriteLine("Duplicate name, retry.");
+                }
+                sw.Write($"{(name == "" ? "unamed device" : name)}" + ',' + lastAddr + ',' + key + '\n');
+            }
+        }
+        protected void SaveDevice(Device device)
+        {
+            var devices = ReadDevices();
+            if (devices.Exists(d => d.Name == device.Name && d.Key == device.Key))
+            {
+                devices[devices.FindIndex(d => d.Name == device.Name)] = device;
+                SaveDevice(devices);
+            }
+            else
+            {
+                using (StreamWriter sw = new StreamWriter("devices"))
+                {
+                    sw.WriteLine(device.Name + ',' + device.LastAddr + ',' + device.Key + '\n');
+                }
+            }
+        }
+        protected void SaveDevice(List<Device> devices)
+        {
+            using (FileStream fs = new FileStream("devices",FileMode.Truncate))
+            {
+                foreach (var d in devices)
+                {
+                    fs.Write(Encoding.Default.GetBytes(d.Name + ',' + d.LastAddr + ',' + d.Key + '\n'));
+                }
             }
         }
         public List<Device> ReadDevices()

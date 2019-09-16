@@ -14,33 +14,35 @@ namespace Transfer
     }
     class Receiver : Core
     {
+        new readonly int PortUsed = ReceiverPort;
         public void ActivateListening()
         {
             IPAddress localAddr = IPAddress.Parse(Utils.GetLocalIPAddress());
-            IPAddress remoteAddr = null;
+            IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, SenderPort);
             Message message = null;
 
             while (true)
             {
-                UdpMulticastReceive((msg) => msg.Type == MsgType.Info,
-                    (msg) => { remoteAddr = msg.IP; message = msg; });
-                UdpMulticastSend(new Message { IP = localAddr, Pin = message.Pin });
+                UdpMulticastReceive(ref remoteEP,
+                    (msg) => msg.Type == MsgType.Info,
+                    (msg) => { message = msg; });
+                UdpMulticastSend(new Message { Pin = message.Pin });
                 try
                 {
                     CallWithTimeout(() =>
                     {
-                        UdpReceive(new IPEndPoint(remoteAddr, OutPort),
+                        UdpReceive(ref remoteEP,
                             (msg) => msg.Type == MsgType.Key,
                             (msg) => message = msg);
                     }, Timeout);
                 }
                 catch (OperationCanceledException)
                 {
-                    Console.WriteLine("Connection request received, but timeout encountered when getting confirm. ");
+                    Console.Error.WriteLine("Connection request received, but timeout encountered when getting confirm. ");
                     continue;
                 }
-                UdpSend(new IPEndPoint(remoteAddr, InPort), message);
-                SaveDevice(message.Key, remoteAddr.ToString());
+                UdpSend(remoteEP, message);
+                SaveDevice(message.Key, remoteEP.Address.ToString());
                 break;
             }
         }
