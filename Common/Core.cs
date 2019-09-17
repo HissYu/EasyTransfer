@@ -25,16 +25,39 @@ namespace Transfer
         public string Key;
         public string LastAddr;
     }
+    public enum CoreType
+    {
+        Sender, Receiver
+    }
     public class Core
     {
         protected const int ReceiverPort = 37384;
         protected const int SenderPort = 38384;
         protected const int TransferPort = 37484;
-        protected readonly int PortUsed;
+        public readonly int PortUsed;
+        public readonly int PortUnused;
+        private UdpClient client;
         protected const int Timeout = 5000;
         protected readonly IPAddress MulticastAddr = IPAddress.Parse("234.2.3.4");
         protected readonly IPAddress LocalAddr = IPAddress.Parse(Utils.GetLocalIPAddress());
-
+        public Core(CoreType t)
+        {
+            switch (t)
+            {
+                case CoreType.Sender:
+                    PortUsed = SenderPort;
+                    PortUnused = ReceiverPort;
+                    break;
+                case CoreType.Receiver:
+                    PortUsed = ReceiverPort;
+                    PortUnused = SenderPort;
+                    break;
+                default:
+                    throw new Exception();
+            }
+            client = new UdpClient(PortUsed);
+            client.JoinMulticastGroup(MulticastAddr);
+        }
         protected void CallWithTimeout(Action action, int miliseconds)
         {
             Task wrapper = new Task(() => action());
@@ -54,7 +77,7 @@ namespace Transfer
         protected void UdpSend(IPEndPoint remoteEP, Message msg)
         {
             byte[] bs = msg.ToBytes();
-            using (UdpClient client = new UdpClient(PortUsed))
+            //using (UdpClient client = new UdpClient(PortUsed))
             {
                 client.Send(bs, bs.Length, remoteEP);
                 //DEBUG
@@ -63,11 +86,15 @@ namespace Transfer
         }
         protected void UdpReceive(ref IPEndPoint remoteEP, Predicate<Message> condition, Action<Message> callback)
         {
-            while (true)
+            //using (UdpClient client = new UdpClient(PortUsed))
             {
-                using (UdpClient client = new UdpClient(PortUsed))
+                while (true)
                 {
+                    Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
+
                     byte[] receive = client.Receive(ref remoteEP);
+
+                    Console.WriteLine("Received: {0}",Utils.ShowBytes(receive));
                     if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
                     {
                         //DEBUG
@@ -80,18 +107,20 @@ namespace Transfer
         }
         protected void UdpMulticastSend(Message message)
         {
-            IPEndPoint multicastEP = new IPEndPoint(MulticastAddr, PortUsed);
+            IPEndPoint multicastEP = new IPEndPoint(MulticastAddr, PortUnused);
             UdpSend(multicastEP, message);
         }
         protected void UdpMulticastReceive(ref IPEndPoint remoteEP ,Predicate<Message> condition, Action<Message> callback)
         {
-            while (true)
+            //using (UdpClient client = new UdpClient(PortUsed))
             {
-                using (UdpClient client = new UdpClient(PortUsed))
+                while (true)
                 {
-                    client.JoinMulticastGroup(MulticastAddr);
-                    //IPEndPoint multicastEP = new IPEndPoint(MulticastAddr, SenderPort);
+                    //client.JoinMulticastGroup(MulticastAddr);
+                    Console.WriteLine("Start listening at {0}:{1}",remoteEP.Address,remoteEP.Port);
                     byte[] receive = client.Receive(ref remoteEP);
+                    Console.WriteLine("Received: {0}", Utils.ShowBytes(receive));
+
                     if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
                     {
                         //DEBUG
@@ -102,21 +131,44 @@ namespace Transfer
                 }
             }
         }
+        protected void TcpSetupStream(IPEndPoint remoteEP, Action<NetworkStream> streamAction)
+        {
+            using (TcpClient client = new TcpClient())
+            {
+                client.Connect(remoteEP);
+                if (client.Connected)
+                {
+                    var ns = client.GetStream();
+                    streamAction(ns);
+                    ns.Close();client.Close();
+                }
+            }
+        }
+        protected void TcpAcceptStream(Action<NetworkStream> streamAction)
+        {
+            TcpListener listener = new TcpListener(LocalAddr, TransferPort);
+            listener.Start();
+            TcpClient client = listener.AcceptTcpClient();
+            var ns = client.GetStream();
+            streamAction(ns);
+            ns.Close();
+            listener.Stop();
+        }
         protected void SaveDevice(string key, string lastAddr)
         {
+            string name = null;
+            while (true)
+            {
+                Console.Write("Device name: ");
+                name = Console.ReadLine();
+                if (!ReadDevices().Exists(d=>d.Name==name))
+                {
+                    break;
+                }
+                Console.Error.WriteLine("Duplicate name, retry.");
+            }
             using (StreamWriter sw = new StreamWriter("devices"))
             {
-                string name = null;
-                while (true)
-                {
-                    Console.Write("Device name: ");
-                    name = Console.ReadLine();
-                    if (!ReadDevices().Exists(d=>d.Name==name))
-                    {
-                        break;
-                    }
-                    Console.Error.WriteLine("Duplicate name, retry.");
-                }
                 sw.Write($"{(name == "" ? "unamed device" : name)}" + ',' + lastAddr + ',' + key + '\n');
             }
         }
@@ -159,6 +211,15 @@ namespace Transfer
                 }
             }
             return devices;
+        }
+        protected Device FindKey(string key2)
+        {
+            var devices = ReadDevices();
+            if (devices.Exists(s => s.Key.Contains(key2)))
+            {
+                return devices.Find(s => s.Key.Contains(key2));
+            }
+            else return null;
         }
     }
 }

@@ -11,11 +11,11 @@ namespace Transfer
 {
     class Sender : Core
     {
-        new readonly int PortUsed = SenderPort;
+        //public new readonly int PortUsed = SenderPort;
         int PackSize { get => 1024; }
+        public Sender() : base(CoreType.Sender) { }
         public void AddDeviceFromScanning()
         {
-            IPAddress localAddr = IPAddress.Parse(Utils.GetLocalIPAddress());
             IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, ReceiverPort);
             Message MsgSent = new Message { Pin = Utils.GeneratePin() };
             string status = null;
@@ -55,7 +55,7 @@ namespace Transfer
         public void ListDevices()
         {
             List<Device> devices = ReadDevices();
-            string fmt = "{0,-10}    {1,-15}    ";
+            string fmt = "{0,-10}    {1,-20}    ";
             Console.WriteLine(fmt, "Device Name", "Last Connnected Addr");
             foreach (var d in devices)
             {
@@ -79,6 +79,8 @@ namespace Transfer
                     (msg) => msg.Type == MsgType.Confirm && msg.SemiKey == key2,
                     (msg) => {  });
             }, Timeout);
+            confirm.SemiKey = key2;
+            UdpSend(remoteEP, confirm);
 
             device.LastAddr = remoteEP.Address.ToString();
             SaveDevice(device);
@@ -88,6 +90,7 @@ namespace Transfer
         {
             
             Message meta = Message.CreateMeta(filename, PackSize, out byte[] data);
+            meta.PackSize = PackSize > data.Length ? data.Length : PackSize;
             string status = "";
             long continueId = 0;
             try
@@ -102,32 +105,65 @@ namespace Transfer
                         (msg) => msg.Type == MsgType.Continue,
                         (msg) => continueId = msg.PackID);
                 }, Timeout);
-                //Set up Tcp connection
-                using (TcpClient client = new TcpClient())
+                remoteEP.Port = TransferPort;
+                TcpSetupStream(remoteEP, ns =>
                 {
-                    client.Connect(remoteEP);
-                    if (client.Connected)
+                    byte[] bs = null;
+                    Message dataMsg = new Message();
+                    for (int i = (int)continueId - 1; i < meta.PackCount - 1; i++)
                     {
-                        NetworkStream s = client.GetStream();
-                        byte[] bs = null;
-                        Message dataMsg = new Message();
-                        for (int i =(int)continueId-1; i < meta.PackCount - 1; i++)
-                        {
-                            dataMsg.PackID = i + 1;
-                            dataMsg.Data = data.AsSpan().Slice(i * PackSize, PackSize).ToArray();
-                            bs = dataMsg.ToBytes();
-                            s.Write(bs, 0, bs.Length);
-                        }
-                        dataMsg.PackID++;
-                        dataMsg.Data = data.AsSpan().Slice((int)(dataMsg.PackID - 2) * PackSize).ToArray();
+                        dataMsg.PackID = i + 1;
+                        dataMsg.Data = data.AsSpan().Slice(i * PackSize, PackSize).ToArray();
                         bs = dataMsg.ToBytes();
-                        s.Write(bs, 0, bs.Length);
+                        ns.Write(bs, 0, bs.Length);
+                        ns.Flush();
                     }
-                }
+                    if (data.Length > (dataMsg.PackID) * PackSize)
+                    {
+                        dataMsg.PackID++;
+                        dataMsg.Data = data.AsSpan().Slice((int)(dataMsg.PackID - 1) * PackSize).ToArray();
+                        bs = dataMsg.ToBytes();
+                        ns.Write(bs, 0, bs.Length);
+                        ns.Flush();
+                    }
+                    //int sentbytes = ((int)continueId - 1)*PackSize;
+                    //while (sentbytes<meta.Size)
+                    //{
+                    //    dataMsg.PackID++;
+                    //    dataMsg.Data = data.AsSpan().Slice(sentbytes, PackSize).ToArray();
+                    //    bs = dataMsg.ToBytes();
+                    //    ns.Write(bs, 0, bs.Length);
+
+                    //}
+                });
             }
             catch (OperationCanceledException)
             {
                 Console.Error.WriteLine(status + " Timeout");
+            }
+            catch (SocketException e)
+            {
+                Console.Error.WriteLine("Transfer Error");
+                throw e;
+            }
+        }
+        public void SendText(string name,string text)
+        {
+            Message message = new Message { Text = text };
+            try
+            {
+                IPEndPoint remoteEP = ConfirmAddr(name);
+                UdpSend(remoteEP, Message.CreateTextMeta(text.Length));
+                remoteEP.Port = TransferPort;
+                TcpSetupStream(remoteEP, ns =>
+                {
+                    byte[] bs = message.ToBytes();
+                    ns.Write(bs, 0, bs.Length);
+                });
+            }
+            catch (OperationCanceledException)
+            {
+                Console.Error.WriteLine("Confirm Addr Timeout");
             }
             catch (SocketException e)
             {

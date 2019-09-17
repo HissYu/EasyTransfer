@@ -103,11 +103,15 @@ namespace Transfer
         public static Message CreateMeta(string filename, int packSize, out byte[] data)
         {
             data = File.ReadAllBytes(filename);
-            byte[] hash = null;
+            byte[] hash = new byte[256];
+            byte[] t;
             using (SHA256 s = SHA256.Create())
-                hash = s.ComputeHash(data);
+                t = s.ComputeHash(data);
+            Array.Copy(t, 0, hash, 0, t.Length);
             return new Message { Filename = filename, Size = data.Length, PackSize = packSize, PackCount = (long)Math.Ceiling((double)data.Length / packSize), Hash = hash };
         }
+        public static Message CreateTextMeta(int textLength) => new Message { Filename = "", Size = textLength, PackSize = -1, Hash = new byte[256], PackCount = -1 };
+        public static bool IsText(Message message) => message.Filename == ""  && message.PackSize == -1 && message.PackCount == -1  && message.Hash[0] == 0;
         public static bool TryParse(byte[] src, out Message message)
         {
             try

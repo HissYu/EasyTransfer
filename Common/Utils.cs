@@ -88,9 +88,18 @@ namespace Transfer
         public static string GenerateSemiKey(string key, out string guard)
         {
             Random r = new Random();
-            int start = r.Next(key.Length - 41, key.Length - 1);
+            int start = r.Next(0, key.Length - 41);
             guard = key.Substring(start + 20, 20);
             return key.Substring(start, 20);
+        }
+        public static string GenerateGuardKey(string key, string key1)
+        {
+            if (key.Contains(key1))
+            {
+                int i = key.IndexOf(key1);
+                return key.Substring(i + 20, 20);
+            }
+            else return "";
         }
 
         internal static void PrintBytes(byte[] bs)
