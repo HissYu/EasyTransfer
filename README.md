@@ -8,16 +8,16 @@ Currently this project is still in development, but you may have a taste.
 ### Core
 > #### For RECEIVER
 >> `-a` active mode, will respond to Send's scanning.
-
+>>
 >>`--start` start working, will receive files or text sent by sender.
-
+>>
 > #### For SENDER
 >> `-s` send scan signal, then save a receiver.
-
+>>
 >> `-l` list all recorded device.
-
+>>
 >> `-t <device name> <text>` send text to specified device.
-
+>>
 >> `-f <device name> <file name>` send file to specified device.
 
 
