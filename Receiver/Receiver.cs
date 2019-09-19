@@ -128,9 +128,10 @@ namespace Transfer
                     {
                         ns.Read(bs, 0, meta.PackSize + 9);
                         data = Message.Parse(bs);
+                        fs.Seek(0, SeekOrigin.End);
                         fs.Write(data.Data, 0, meta.PackSize);
                         metafs.Seek(-8, SeekOrigin.End);
-                        metafs.Write(Utils.GetBytes(data.PackID), 0, 8);
+                        metafs.Write(Utils.GetBytes(data.PackID+1), 0, 8);
                         fs.Flush(); metafs.Flush();
                     }
                     ns.Read(bs, 0, meta.PackSize + 9);
@@ -149,7 +150,7 @@ namespace Transfer
             {
                 byte[] bs = new byte[256 + 8];
                 Array.Copy(meta.Hash, 0, bs, 0, 256);
-                Array.Copy(Utils.GetBytes((long)0), 0, bs, 256, 8);
+                Array.Copy(Utils.GetBytes((long)1), 0, bs, 256, 8);
                 File.WriteAllBytes(meta.Filename + ".meta", bs);
                 return 1;
             }
