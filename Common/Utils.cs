@@ -6,14 +6,14 @@ using System.Net.NetworkInformation;
 using System.Text;
 using System.Text.RegularExpressions;
 
-namespace Transfer
+namespace Common
 {
     public class Utils
     {
-        public static string GetTimestampNow()
-        {
-            return (DateTime.Now - DateTime.UnixEpoch).TotalMilliseconds.ToString().Split('.')[0];
-        }
+        //public static string GetTimestampNow()
+        //{
+        //    return (DateTime.Now - DateTime.UnixEpoch).TotalMilliseconds.ToString().Split('.')[0];
+        //}
         public static string GetLocalIPAddress()
         {
             //Console.WriteLine(Dns.GetHostName());
@@ -27,7 +27,7 @@ namespace Transfer
             foreach (var i in addressList)
             {
                 string ip = i.ToString();
-                if (Regex.IsMatch(ip,pattern))
+                if (Regex.IsMatch(ip, pattern))
                 {
                     add.Add(ip);
                 }
@@ -152,5 +152,23 @@ namespace Transfer
         public static long BtoLong(byte[] src) { return BtoNum(src, 8); }
         public static int BtoInt(byte[] src) { return (int)BtoNum(src, 4); }
         public static short BtoShort(byte[] src) { return (short)BtoNum(src, 2); }
+        public static byte[] BytesSlice(byte[] src, int start, int length)
+        {
+            byte[] newb = new byte[length];
+            Array.Copy(src, start, newb, 0, length);
+            return newb;
+        }
+        public static byte[] BytesSlice(byte[] src, int start)
+        {
+            byte[] newb = new byte[src.Length - start];
+            Array.Copy(src, start, newb, 0, src.Length - start);
+            return newb;
+        }
+        //public static bool BytesEqual(byte[] src1, byte[] src2)
+        //{
+        //    if (src1.Length!=src2.Length)
+        //        return false;
+        //    //src1.
+        //}
     }
 }

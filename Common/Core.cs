@@ -3,13 +3,13 @@ using System.Collections.Generic;
 using System.IO;
 using System.Net;
 using System.Net.Sockets;
-using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
 using System.Threading.Tasks;
 
-namespace Transfer
+namespace Common
 {
+    
     public class Redirection
     {
         public bool Handled = false;
@@ -94,7 +94,7 @@ namespace Transfer
 
                     byte[] receive = client.Receive(ref remoteEP);
 
-                    Console.WriteLine("Received: {0}",Utils.ShowBytes(receive));
+                    Console.WriteLine("Received: {0}", Utils.ShowBytes(receive));
                     if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
                     {
                         //DEBUG
@@ -110,14 +110,14 @@ namespace Transfer
             IPEndPoint multicastEP = new IPEndPoint(MulticastAddr, PortUnused);
             UdpSend(multicastEP, message);
         }
-        protected void UdpMulticastReceive(ref IPEndPoint remoteEP ,Predicate<Message> condition, Action<Message> callback)
+        protected void UdpMulticastReceive(ref IPEndPoint remoteEP, Predicate<Message> condition, Action<Message> callback)
         {
             //using (UdpClient client = new UdpClient(PortUsed))
             {
                 while (true)
                 {
                     //client.JoinMulticastGroup(MulticastAddr);
-                    Console.WriteLine("Start listening at {0}:{1}",remoteEP.Address,remoteEP.Port);
+                    Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
                     byte[] receive = client.Receive(ref remoteEP);
                     Console.WriteLine("Received: {0}", Utils.ShowBytes(receive));
 
@@ -140,7 +140,7 @@ namespace Transfer
                 {
                     var ns = client.GetStream();
                     streamAction(ns);
-                    ns.Close();client.Close();
+                    ns.Close(); client.Close();
                 }
             }
         }
@@ -161,7 +161,7 @@ namespace Transfer
             {
                 Console.Write("Device name: ");
                 name = Console.ReadLine();
-                if (!ReadDevices().Exists(d=>d.Name==name))
+                if (!ReadDevices().Exists(d => d.Name == name))
                 {
                     break;
                 }
@@ -190,11 +190,12 @@ namespace Transfer
         }
         protected void SaveDevice(List<Device> devices)
         {
-            using (FileStream fs = new FileStream("devices",FileMode.Truncate))
+            using (FileStream fs = new FileStream("devices", FileMode.Truncate))
             {
                 foreach (var d in devices)
                 {
-                    fs.Write(Encoding.Default.GetBytes(d.Name + ',' + d.LastAddr + ',' + d.Key + '\n'));
+                    byte[] bs = Encoding.Default.GetBytes(d.Name + ',' + d.LastAddr + ',' + d.Key + '\n');
+                    fs.Write(bs,0,bs.Length);
                 }
             }
         }
@@ -206,7 +207,8 @@ namespace Transfer
                 while (!sr.EndOfStream)
                 {
                     string line = sr.ReadLine();
-                    string[] i = line.Split(',', 3);
+                    char[] s = new char[] { ',' };
+                    string[] i = line.Split(s, 3);
                     devices.Add(new Device { Name = i[0], LastAddr = i[1], Key = i[2] });
                 }
             }
@@ -222,4 +224,5 @@ namespace Transfer
             else return null;
         }
     }
+    
 }

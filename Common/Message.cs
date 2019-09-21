@@ -1,15 +1,10 @@
 ﻿using System;
-using System.Net;
 using System.Collections.Generic;
-using System.Text;
-using System.Runtime.Serialization;
-using System.Net.Sockets;
-using System.Runtime.Serialization.Formatters.Binary;
-using System.Runtime.InteropServices;
-using System.Security.Cryptography;
 using System.IO;
+using System.Security.Cryptography;
+using System.Text;
 
-namespace Transfer
+namespace Common
 {
     #region Message Structs
     interface IMessageInfo
@@ -50,7 +45,7 @@ namespace Transfer
     {
         Info, Key, Confirm, Meta, Continue, File, Text, Invalid
     }
-   
+
     public class Message : IMessageConfirm, IMessageContinue, IMessageFile, IMessageInfo, IMessageKey, IMessageMeta, IMessageText
     {
         public string Text { get; set; }
@@ -68,8 +63,8 @@ namespace Transfer
         public MsgType Type
         {
             get =>
-                SemiKey != null ? MsgType.Confirm : 
-                Pin!=0 ? MsgType.Info :
+                SemiKey != null ? MsgType.Confirm :
+                Pin != 0 ? MsgType.Info :
                 Key != null ? MsgType.Key :
                 PackID != 0 ?
                     (Data != null ? MsgType.File : MsgType.Continue) :
@@ -79,39 +74,51 @@ namespace Transfer
 
         public static Message Parse(byte[] src)
         {
-            Span<byte> bs = src;
+            //Span<byte> bs = src;
+            // Codes fucking ugly
+
             switch (src[0])
             {
                 case 0:
-                    return new Message { Pin = (int)Utils.BtoNum(bs.Slice(1, 3).ToArray(), 3) };
+                    //return new Message { Pin = (int)Utils.BtoNum(bs.Slice(1, 3).ToArray(), 3) };
+                    return new Message { Pin = (int)Utils.BtoNum(Utils.BytesSlice(src, 1, 3), 3) };
                 case 1:
-                    return new Message { Key = Utils.BtoString(bs.Slice(1).ToArray()) };
+                    //return new Message { Key = Utils.BtoString(bs.Slice(1).ToArray()) };
+                    return new Message { Key = Utils.BtoString(Utils.BytesSlice(src, 1)) };
                 case 2:
-                    return new Message { SemiKey = Utils.BtoString(bs.Slice(1).ToArray()) };
+                    //return new Message { SemiKey = Utils.BtoString(bs.Slice(1).ToArray()) };
+                    return new Message { SemiKey = Utils.BtoString(Utils.BytesSlice(src, 1)) };
                 case 3:
-                    return new Message { Size = Utils.BtoLong(bs.Slice(1, 8).ToArray()), PackSize = Utils.BtoInt(bs.Slice(9, 4).ToArray()), PackCount = Utils.BtoLong(bs.Slice(13, 8).ToArray()), Hash = bs.Slice(21, 256).ToArray(), Filename = Utils.BtoString(bs.Slice(277).ToArray()) };
+                    //return new Message { Size = Utils.BtoLong(bs.Slice(1, 8).ToArray()), PackSize = Utils.BtoInt(bs.Slice(9, 4).ToArray()), PackCount = Utils.BtoLong(bs.Slice(13, 8).ToArray()), Hash = bs.Slice(21, 256).ToArray(), Filename = Utils.BtoString(bs.Slice(277).ToArray()) };
+                    return new Message { Size = Utils.BtoLong(Utils.BytesSlice(src, 1, 8)), PackSize = Utils.BtoInt(Utils.BytesSlice(src, 9, 4)), PackCount = Utils.BtoLong(Utils.BytesSlice(src, 13, 8)), Hash = Utils.BytesSlice(src, 21, 256), Filename = Utils.BtoString(Utils.BytesSlice(src, 277)) };
                 case 4:
-                    return new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()) };
+                    //return new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()) };
+                    return new Message { PackID = Utils.BtoLong(Utils.BytesSlice(src, 1, 8)) };
                 case 5:
-                    return new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()), Data = bs.Slice(9).ToArray() };
+                    //return new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()), Data = bs.Slice(9).ToArray() };
+                    return new Message { PackID = Utils.BtoLong(Utils.BytesSlice(src, 1, 8)), Data = Utils.BytesSlice(src, 9) };
                 case 6:
-                    return new Message { Text = Utils.BtoString(bs.Slice(1).ToArray()) };
+                    //return new Message { Text = Utils.BtoString(bs.Slice(1).ToArray()) };
+                    return new Message { Text = Utils.BtoString(Utils.BytesSlice(src, 1)) };
                 default:
                     throw new ArgumentException("Invalid protocol.");
             }
         }
-        public static Message CreateMeta(string filename, int packSize, out byte[] data)
+        public static Message CreateMeta(string filename, int packSize)
         {
-            data = File.ReadAllBytes(filename);
+            //data = File.ReadAllBytes(filename);
             byte[] hash = new byte[256];
             byte[] t;
             using (SHA256 s = SHA256.Create())
-                t = s.ComputeHash(data);
-            Array.Copy(t, 0, hash, 0, t.Length);
-            return new Message { Filename = filename, Size = data.Length, PackSize = packSize, PackCount = (long)Math.Ceiling((double)data.Length / packSize), Hash = hash };
+            using(FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+            {
+                t = s.ComputeHash(fs);
+                Array.Copy(t, 0, hash, 0, t.Length);
+                return new Message { Filename = filename, Size = fs.Length, PackSize = packSize, PackCount = (long)Math.Ceiling((double)fs.Length / packSize), Hash = hash };
+            }
         }
         public static Message CreateTextMeta(int textLength) => new Message { Filename = "", Size = textLength, PackSize = -1, Hash = new byte[256], PackCount = -1 };
-        public static bool IsText(Message message) => message.Filename == ""  && message.PackSize == -1 && message.PackCount == -1  && message.Hash[0] == 0;
+        public static bool IsText(Message message) => message.Filename == "" && message.PackSize == -1 && message.PackCount == -1 && message.Hash[0] == 0;
         public static bool TryParse(byte[] src, out Message message)
         {
             try

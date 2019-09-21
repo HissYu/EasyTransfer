@@ -7,11 +7,9 @@ Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Receiver", "Receiver\Receiv
 EndProject
 Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Sender", "Sender\Sender.csproj", "{07200629-3FB7-4641-A091-BC2292902F4F}"
 EndProject
-Project("{9A19103F-16F7-4668-BE54-9A1E7A4F7556}") = "Common", "Common\Common.csproj", "{F1E0DB2D-3F60-4A88-A9B8-9ABC0053AFF9}"
-EndProject
 Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "TransferAndroid", "TransferAndroid\TransferAndroid.csproj", "{DD13474C-E0EB-44EF-A54F-E4918DAC99CD}"
 EndProject
-Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "RealCommon", "RealCommon\RealCommon.csproj", "{E0085961-9AD0-4EC8-8EE3-97B081804485}"
+Project("{FAE04EC0-301F-11D3-BF4B-00C04F79EFBC}") = "Common", "Common\Common.csproj", "{E0085961-9AD0-4EC8-8EE3-97B081804485}"
 EndProject
 Global
 	GlobalSection(SolutionConfigurationPlatforms) = preSolution
