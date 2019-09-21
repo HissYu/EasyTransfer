@@ -17,7 +17,7 @@ namespace Transfer
                     sender.ListDevices();
                     break;
                 case "-f":
-                    if (args[1]=="" || args[2]=="")
+                    if (args[1] == "" || args[2] == "")
                         throw new ArgumentNullException("Destination and filename cannot be empty. ");
                     if (!File.Exists(args[2]))
                         throw new ArgumentException("File not exist");

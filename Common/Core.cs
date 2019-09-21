@@ -9,7 +9,8 @@ using System.Threading.Tasks;
 
 namespace Common
 {
-    
+    public delegate int InitailizeProgress();
+    public delegate void UpdateProgress(int progress);
     public class Redirection
     {
         public bool Handled = false;
@@ -195,7 +196,7 @@ namespace Common
                 foreach (var d in devices)
                 {
                     byte[] bs = Encoding.Default.GetBytes(d.Name + ',' + d.LastAddr + ',' + d.Key + '\n');
-                    fs.Write(bs,0,bs.Length);
+                    fs.Write(bs, 0, bs.Length);
                 }
             }
         }
@@ -224,5 +225,5 @@ namespace Common
             else return null;
         }
     }
-    
+
 }

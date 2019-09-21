@@ -22,7 +22,8 @@ namespace Common
             try
             {
                 UdpMulticastSend(MsgSent);
-                CallWithTimeout(() => {
+                CallWithTimeout(() =>
+                {
                     status = "Get Response";
                     UdpMulticastReceive(ref remoteEP,
                         (msg) => msg.Type == MsgType.Info && msg.Pin == MsgSent.Pin,
@@ -32,7 +33,8 @@ namespace Common
                 MsgSent = new Message { Key = Utils.GenerateKey() };
                 UdpSend(remoteEP, MsgSent);
 
-                CallWithTimeout(() => {
+                CallWithTimeout(() =>
+                {
                     status = "Get Confirm";
                     UdpReceive(ref remoteEP,
                         (msg) => msg.Type == MsgType.Key && msg.Key == MsgSent.Key,
@@ -53,7 +55,7 @@ namespace Common
         public void ListDevices()
         {
             List<Device> devices = ReadDevices();
-            string fmt = "{0,-10}    {1,-20}    ";
+            string fmt = "{0,-10}    {1,-20}";
             Console.WriteLine(fmt, "Device Name", "Last Connnected Addr");
             foreach (var d in devices)
             {
@@ -106,12 +108,12 @@ namespace Common
                 remoteEP.Port = TransferPort;
                 TcpSetupStream(remoteEP, ns =>
                 {
-                    using (FileStream fs = new FileStream(filename,FileMode.Open,FileAccess.Read))
+                    using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
                     {
                         byte[] bs = null;
-                        Message dataMsg = new Message { PackID=continueId,Data=new byte[PackSize]};
+                        Message dataMsg = new Message { PackID = continueId, Data = new byte[PackSize] };
                         fs.Seek((continueId - 1) * PackSize, SeekOrigin.Begin);
-                        while (fs.Length - fs.Position>PackSize)
+                        while (fs.Length - fs.Position > PackSize)
                         {
                             fs.Read(dataMsg.Data, 0, PackSize);
                             bs = dataMsg.ToBytes();
@@ -119,7 +121,7 @@ namespace Common
                             ns.Flush();
                             dataMsg.PackID++;
                         }
-                        fs.Read(dataMsg.Data, 0, (int)(fs.Length-fs.Position));
+                        fs.Read(dataMsg.Data, 0, (int)(fs.Length - fs.Position));
                         bs = dataMsg.ToBytes();
                         ns.Write(bs, 0, bs.Length);
                         ns.Flush();

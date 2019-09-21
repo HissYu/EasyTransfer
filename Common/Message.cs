@@ -110,7 +110,7 @@ namespace Common
             byte[] hash = new byte[256];
             byte[] t;
             using (SHA256 s = SHA256.Create())
-            using(FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+            using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
             {
                 t = s.ComputeHash(fs);
                 Array.Copy(t, 0, hash, 0, t.Length);

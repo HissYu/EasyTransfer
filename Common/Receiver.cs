@@ -55,7 +55,7 @@ namespace Common
             //{
             while (true)
             {
-                begin:
+            begin:
                 IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, SenderPort);
                 Device device = null;
                 string key2 = null;
@@ -122,7 +122,7 @@ namespace Common
             {
                 using (FileStream metafs = new FileStream(meta.Filename + ".meta", FileMode.Open))
                 using (FileStream fs = new FileStream(meta.Filename, FileMode.OpenOrCreate))
-                using(SHA256 sha = SHA256.Create())
+                using (SHA256 sha = SHA256.Create())
                 {
                     Message data;
                     byte[] bs = new byte[meta.PackSize + 9];
