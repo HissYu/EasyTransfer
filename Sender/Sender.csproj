@@ -7,11 +7,12 @@
   </PropertyGroup>
 
   <ItemGroup>
+    <Compile Remove="Sender.cs" />
     <Compile Remove="Utils.cs" />
   </ItemGroup>
 
   <ItemGroup>
-    <ProjectReference Include="..\Common\Common.csproj" />
+    <ProjectReference Include="..\RealCommon\RealCommon.csproj" />
   </ItemGroup>
 
 </Project>
