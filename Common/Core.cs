@@ -22,9 +22,9 @@ namespace Common
     }
     public class Device
     {
-        public string Name;
-        public string Key;
-        public string LastAddr;
+        public string Name { get; set; }
+        public string Key { get; set; }
+        public string LastAddr { get; set; }
     }
     public enum CoreType
     {
@@ -203,6 +203,10 @@ namespace Common
         public List<Device> ReadDevices()
         {
             List<Device> devices = new List<Device>();
+            if (!File.Exists("devices"))
+            {
+                File.Create("devices").Close();
+            }
             using (StreamReader sr = new StreamReader("devices"))
             {
                 while (!sr.EndOfStream)

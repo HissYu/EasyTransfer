@@ -74,35 +74,20 @@ namespace Common
 
         public static Message Parse(byte[] src)
         {
-            //Span<byte> bs = src;
+            Span<byte> bs = src;
             // Codes fucking ugly
 
-            switch (src[0])
+            return (src[0]) switch
             {
-                case 0:
-                    //return new Message { Pin = (int)Utils.BtoNum(bs.Slice(1, 3).ToArray(), 3) };
-                    return new Message { Pin = (int)Utils.BtoNum(Utils.BytesSlice(src, 1, 3), 3) };
-                case 1:
-                    //return new Message { Key = Utils.BtoString(bs.Slice(1).ToArray()) };
-                    return new Message { Key = Utils.BtoString(Utils.BytesSlice(src, 1)) };
-                case 2:
-                    //return new Message { SemiKey = Utils.BtoString(bs.Slice(1).ToArray()) };
-                    return new Message { SemiKey = Utils.BtoString(Utils.BytesSlice(src, 1)) };
-                case 3:
-                    //return new Message { Size = Utils.BtoLong(bs.Slice(1, 8).ToArray()), PackSize = Utils.BtoInt(bs.Slice(9, 4).ToArray()), PackCount = Utils.BtoLong(bs.Slice(13, 8).ToArray()), Hash = bs.Slice(21, 256).ToArray(), Filename = Utils.BtoString(bs.Slice(277).ToArray()) };
-                    return new Message { Size = Utils.BtoLong(Utils.BytesSlice(src, 1, 8)), PackSize = Utils.BtoInt(Utils.BytesSlice(src, 9, 4)), PackCount = Utils.BtoLong(Utils.BytesSlice(src, 13, 8)), Hash = Utils.BytesSlice(src, 21, 256), Filename = Utils.BtoString(Utils.BytesSlice(src, 277)) };
-                case 4:
-                    //return new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()) };
-                    return new Message { PackID = Utils.BtoLong(Utils.BytesSlice(src, 1, 8)) };
-                case 5:
-                    //return new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()), Data = bs.Slice(9).ToArray() };
-                    return new Message { PackID = Utils.BtoLong(Utils.BytesSlice(src, 1, 8)), Data = Utils.BytesSlice(src, 9) };
-                case 6:
-                    //return new Message { Text = Utils.BtoString(bs.Slice(1).ToArray()) };
-                    return new Message { Text = Utils.BtoString(Utils.BytesSlice(src, 1)) };
-                default:
-                    throw new ArgumentException("Invalid protocol.");
-            }
+                0 => new Message { Pin = (int)Utils.BtoNum(bs.Slice(1, 3).ToArray(), 3) },
+                1 => new Message { Key = Utils.BtoString(bs.Slice(1).ToArray()) },
+                2 => new Message { SemiKey = Utils.BtoString(bs.Slice(1).ToArray()) },
+                3 => new Message { Size = Utils.BtoLong(bs.Slice(1, 8).ToArray()), PackSize = Utils.BtoInt(bs.Slice(9, 4).ToArray()), PackCount = Utils.BtoLong(bs.Slice(13, 8).ToArray()), Hash = bs.Slice(21, 256).ToArray(), Filename = Utils.BtoString(bs.Slice(277).ToArray()) },
+                4 => new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()) },
+                5 => new Message { PackID = Utils.BtoLong(bs.Slice(1, 8).ToArray()), Data = bs.Slice(9).ToArray() },
+                6 => new Message { Text = Utils.BtoString(bs.Slice(1).ToArray()) },
+                _ => throw new ArgumentException("Invalid protocol."),
+            };
         }
         public static Message CreateMeta(string filename, int packSize)
         {
@@ -185,27 +170,18 @@ namespace Common
         }
         public override string ToString()
         {
-            switch (Type)
+            return Type switch
             {
-                case MsgType.Info:
-                    return $" (Obj) Pin: {Pin}";
-                case MsgType.Key:
-                    return $" (Obj) Key: {Key}";
-                case MsgType.Confirm:
-                    return $" (Obj) SemiKey: {SemiKey}";
-                case MsgType.Meta:
-                    return $" (Obj) Filename: {Filename}, Size: {Size} bytes, PackCount: {PackCount}, PackSize: {PackSize} bytes\n (Obj) Hash: {Hash}";
-                case MsgType.Continue:
-                    return $" (Obj) PackId: {PackID}";
-                case MsgType.File:
-                    return $" (Obj) PackID: {PackID}\n (Obj) Data: {Utils.ShowBytes(Data)}";
-                case MsgType.Text:
-                    return $" (Obj) Text: {Text}";
-                case MsgType.Invalid:
-                    return $" (Obj) InvalidMessage";
-                default:
-                    return $" (Obj) InvalidMessage";
-            }
+                MsgType.Info => $" (Obj) Pin: {Pin}",
+                MsgType.Key => $" (Obj) Key: {Key}",
+                MsgType.Confirm => $" (Obj) SemiKey: {SemiKey}",
+                MsgType.Meta => $" (Obj) Filename: {Filename}, Size: {Size} bytes, PackCount: {PackCount}, PackSize: {PackSize} bytes\n (Obj) Hash: {Hash}",
+                MsgType.Continue => $" (Obj) PackId: {PackID}",
+                MsgType.File => $" (Obj) PackID: {PackID}\n (Obj) Data: {Utils.ShowBytes(Data)}",
+                MsgType.Text => $" (Obj) Text: {Text}",
+                MsgType.Invalid => $" (Obj) InvalidMessage",
+                _ => $" (Obj) InvalidMessage",
+            };
         }
     }
 }
