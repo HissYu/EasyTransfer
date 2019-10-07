@@ -94,13 +94,11 @@ namespace Common
             //data = File.ReadAllBytes(filename);
             byte[] hash = new byte[256];
             byte[] t;
-            using (SHA256 s = SHA256.Create())
-            using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
-            {
-                t = s.ComputeHash(fs);
-                Array.Copy(t, 0, hash, 0, t.Length);
-                return new Message { Filename = filename, Size = fs.Length, PackSize = packSize, PackCount = (long)Math.Ceiling((double)fs.Length / packSize), Hash = hash };
-            }
+            using SHA256 s = SHA256.Create();
+            using FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read);
+            t = s.ComputeHash(fs);
+            Array.Copy(t, 0, hash, 0, t.Length);
+            return new Message { Filename = filename, Size = fs.Length, PackSize = packSize, PackCount = (long)Math.Ceiling((double)fs.Length / packSize), Hash = hash };
         }
         public static Message CreateTextMeta(int textLength) => new Message { Filename = "", Size = textLength, PackSize = -1, Hash = new byte[256], PackCount = -1 };
         public static bool IsText(Message message) => message.Filename == "" && message.PackSize == -1 && message.PackCount == -1 && message.Hash[0] == 0;

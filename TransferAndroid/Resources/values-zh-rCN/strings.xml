@@ -1,0 +1,13 @@
+﻿<resources>
+  <string name="drawer_item_history">历史记录</string>
+  <string name="drawer_item_devices">设备</string>
+  <string name="drawer_item_settings">设置</string>
+  <string name="drawer_item_about">关于</string>
+  
+  <string name="drawer_title_other">其他</string>
+  
+  <string name="drawer_header_slogan">方便地传输！</string>
+
+  <string name="view_device_title">设备列表</string>
+
+</resources>

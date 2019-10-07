@@ -37,10 +37,16 @@ namespace Common
         protected const int TransferPort = 37484;
         public readonly int PortUsed;
         public readonly int PortUnused;
-        private UdpClient client;
+        private readonly UdpClient client;
         protected const int Timeout = 5000;
         protected readonly IPAddress MulticastAddr = IPAddress.Parse("234.2.3.4");
         protected readonly IPAddress LocalAddr = IPAddress.Parse(Utils.GetLocalIPAddress());
+
+        static string deviceListFile = "devices";
+        public void OnAndroidDevice()
+        {
+            deviceListFile = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), "devices");
+        }
         public Core(CoreType t)
         {
             switch (t)
@@ -62,11 +68,9 @@ namespace Common
         protected void CallWithTimeout(Action action, int miliseconds)
         {
             Task wrapper = new Task(() => action());
-            using (CancellationTokenSource cancellation = new CancellationTokenSource(miliseconds))
-            {
-                wrapper.Start();
-                wrapper.Wait(cancellation.Token);
-            }
+            using CancellationTokenSource cancellation = new CancellationTokenSource(miliseconds);
+            wrapper.Start();
+            wrapper.Wait(cancellation.Token);
         }
         protected CancellationTokenSource CallAtBackground(Action action)
         {
@@ -134,15 +138,13 @@ namespace Common
         }
         protected void TcpSetupStream(IPEndPoint remoteEP, Action<NetworkStream> streamAction)
         {
-            using (TcpClient client = new TcpClient())
+            using TcpClient client = new TcpClient();
+            client.Connect(remoteEP);
+            if (client.Connected)
             {
-                client.Connect(remoteEP);
-                if (client.Connected)
-                {
-                    var ns = client.GetStream();
-                    streamAction(ns);
-                    ns.Close(); client.Close();
-                }
+                var ns = client.GetStream();
+                streamAction(ns);
+                ns.Close(); client.Close();
             }
         }
         protected void TcpAcceptStream(Action<NetworkStream> streamAction)
@@ -168,10 +170,8 @@ namespace Common
                 }
                 Console.Error.WriteLine("Duplicate name, retry.");
             }
-            using (StreamWriter sw = new StreamWriter("devices"))
-            {
-                sw.Write($"{(name == "" ? "unamed device" : name)}" + ',' + lastAddr + ',' + key + '\n');
-            }
+            using StreamWriter sw = new StreamWriter(deviceListFile);
+            sw.Write($"{(name == "" ? "unamed device" : name)}" + ',' + lastAddr + ',' + key + '\n');
         }
         protected void SaveDevice(Device device)
         {
@@ -183,31 +183,27 @@ namespace Common
             }
             else
             {
-                using (StreamWriter sw = new StreamWriter("devices"))
-                {
-                    sw.WriteLine(device.Name + ',' + device.LastAddr + ',' + device.Key + '\n');
-                }
+                using StreamWriter sw = new StreamWriter(deviceListFile);
+                sw.WriteLine(device.Name + ',' + device.LastAddr + ',' + device.Key + '\n');
             }
         }
         protected void SaveDevice(List<Device> devices)
         {
-            using (FileStream fs = new FileStream("devices", FileMode.Truncate))
+            using FileStream fs = new FileStream(deviceListFile, FileMode.Truncate);
+            foreach (var d in devices)
             {
-                foreach (var d in devices)
-                {
-                    byte[] bs = Encoding.Default.GetBytes(d.Name + ',' + d.LastAddr + ',' + d.Key + '\n');
-                    fs.Write(bs, 0, bs.Length);
-                }
+                byte[] bs = Encoding.Default.GetBytes(d.Name + ',' + d.LastAddr + ',' + d.Key + '\n');
+                fs.Write(bs, 0, bs.Length);
             }
         }
         public List<Device> ReadDevices()
         {
             List<Device> devices = new List<Device>();
-            if (!File.Exists("devices"))
+            if (!File.Exists(deviceListFile))
             {
-                File.Create("devices").Close();
+                File.Create(deviceListFile).Close();
             }
-            using (StreamReader sr = new StreamReader("devices"))
+            using (StreamReader sr = new StreamReader(deviceListFile))
             {
                 while (!sr.EndOfStream)
                 {

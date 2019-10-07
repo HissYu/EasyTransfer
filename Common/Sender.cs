@@ -108,24 +108,22 @@ namespace Common
                 remoteEP.Port = TransferPort;
                 TcpSetupStream(remoteEP, ns =>
                 {
-                    using (FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read))
+                    using FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read);
+                    byte[] bs = null;
+                    Message dataMsg = new Message { PackID = continueId, Data = new byte[PackSize] };
+                    fs.Seek((continueId - 1) * PackSize, SeekOrigin.Begin);
+                    while (fs.Length - fs.Position > PackSize)
                     {
-                        byte[] bs = null;
-                        Message dataMsg = new Message { PackID = continueId, Data = new byte[PackSize] };
-                        fs.Seek((continueId - 1) * PackSize, SeekOrigin.Begin);
-                        while (fs.Length - fs.Position > PackSize)
-                        {
-                            fs.Read(dataMsg.Data, 0, PackSize);
-                            bs = dataMsg.ToBytes();
-                            ns.Write(bs, 0, bs.Length);
-                            ns.Flush();
-                            dataMsg.PackID++;
-                        }
-                        fs.Read(dataMsg.Data, 0, (int)(fs.Length - fs.Position));
+                        fs.Read(dataMsg.Data, 0, PackSize);
                         bs = dataMsg.ToBytes();
                         ns.Write(bs, 0, bs.Length);
                         ns.Flush();
+                        dataMsg.PackID++;
                     }
+                    fs.Read(dataMsg.Data, 0, (int)(fs.Length - fs.Position));
+                    bs = dataMsg.ToBytes();
+                    ns.Write(bs, 0, bs.Length);
+                    ns.Flush();
                 });
             }
             catch (OperationCanceledException)

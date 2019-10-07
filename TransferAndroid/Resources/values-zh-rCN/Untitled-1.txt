@@ -1,0 +1,35 @@
+int playing = -1;
+int watching = 0;
+semaphore access_watching = 1, access_playing = 1, player = 1;
+
+
+function watch(){
+    wait(access_watching);
+    watching++;
+    signal(access_watching);
+    // watch
+    wait(access_watching);
+    watching--;
+    signal(access_watching);
+    if(watching == 0){
+        wait(access_playing);
+        playing = -1;
+        signal(access_playing);
+    }
+}
+function play(int i){
+    wait(player);
+    wait(access_playing);
+    playing = i;
+    signal(access_playing);
+}
+
+Process Audience(int i){
+    wait(access_watching);
+    if(watching == 0) {
+        wait(player);
+        watching++;
+        playing = i;
+    }
+    signal(waccess_watching);
+}

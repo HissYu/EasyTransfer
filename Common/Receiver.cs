@@ -168,18 +168,16 @@ namespace Common
                 File.WriteAllBytes(meta.Filename + ".meta", bs);
                 return 1;
             }
-            using (FileStream fs = new FileStream(meta.Filename + ".meta", FileMode.Open))
+            using FileStream fs = new FileStream(meta.Filename + ".meta", FileMode.Open);
+            byte[] hash = new byte[256];
+            byte[] id = new byte[8];
+            fs.Read(hash, 0, 256);
+            if (hash.SequenceEqual(meta.Hash))
             {
-                byte[] hash = new byte[256];
-                byte[] id = new byte[8];
-                fs.Read(hash, 0, 256);
-                if (hash.SequenceEqual(meta.Hash))
-                {
-                    fs.Read(id, 0, 8);
-                    return (int)Utils.BtoLong(id);
-                }
-                else throw new Exception("Two files with same name have differed hash, please check your file or rename it.");
+                fs.Read(id, 0, 8);
+                return (int)Utils.BtoLong(id);
             }
+            else throw new Exception("Two files with same name have differed hash, please check your file or rename it.");
         }
         //private void SaveProcess(string f)
     }
