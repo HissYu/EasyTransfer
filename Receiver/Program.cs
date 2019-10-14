@@ -13,7 +13,7 @@ namespace Transfer
                     receiver.ActivateListening();
                     break;
                 case "--start":
-                    receiver.ActivateBackgroundReceiver();
+                    receiver.ActivateReceiver();
                     break;
                 case "":
                     break;

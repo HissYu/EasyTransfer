@@ -2,7 +2,8 @@
 using System.Collections.Generic;
 using System.Linq;
 using System.Text;
-
+using System.Threading;
+using System.Threading.Tasks;
 using Android.App;
 using Android.Content;
 using Android.OS;
@@ -19,13 +20,39 @@ namespace TransferAndroid
         private Sender sender;
         private Receiver receiver;
 
-        public void ActivateListening()
+        bool receiverOccupied = false;
+        readonly CancellationTokenSource receiverWorker = new CancellationTokenSource();
+        public async void ActivateListening()
         {
-            throw new NotImplementedException();
+            if (receiverOccupied)
+            {
+                receiverWorker.Cancel();
+            }
+            receiverOccupied = true;
+            await Task.Run(receiver.ActivateListening,receiverWorker.Token);
         }
-        public string GetString()
+        public async void StartReceiving()
         {
-            return "Hello from service.";
+            if (receiverOccupied)
+            {
+                receiverWorker.Cancel();
+            }
+            receiverOccupied = true;
+            await Task.Run(receiver.ActivateReceiver,receiverWorker.Token);
+        }
+        public async void LookForDevice()
+        {
+            //sender.AddDeviceFromScanning();
+#nullable enable
+            Device? device = await Task.Run(sender.AddDeviceFromScanning);
+#nullable disable
+
+        }
+        public async void TestService()
+        {
+            await Task.Delay(5000);
+            //return "Hello from service.";
+            Toast.MakeText(this, "wait ok", ToastLength.Long).Show();
         }
 
         public IBinder Binder { get; private set; }
@@ -34,6 +61,7 @@ namespace TransferAndroid
             base.OnCreate();
             sender = new Sender();
             receiver = new Receiver();
+            sender.OnAndroidDevice();
         }
 
         [return: GeneratedEnum]

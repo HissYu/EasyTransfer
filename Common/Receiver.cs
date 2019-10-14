@@ -10,15 +10,25 @@ using System.Threading;
 namespace Common
 {
     delegate void MessageRedirect(Redirection msg);
+
+    [Serializable]
+    public class ChecksumMismatchException : Exception
+    {
+        public ChecksumMismatchException() { }
+        public ChecksumMismatchException(string message) : base(message) { }
+        public ChecksumMismatchException(string message, Exception inner) : base(message, inner) { }
+        protected ChecksumMismatchException(
+          System.Runtime.Serialization.SerializationInfo info,
+          System.Runtime.Serialization.StreamingContext context) : base(info, context) { }
+    }
     enum ThreadType
     {
         UdpListen,
     }
     public class Receiver : Core
     {
-        //public new readonly int PortUsed = ReceiverPort;
         public Receiver() : base(CoreType.Receiver) { }
-        CancellationTokenSource backgroundWorkHandler;
+        //CancellationTokenSource backgroundWorkHandler;
         public void ActivateListening()
         {
             IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, SenderPort);
@@ -41,18 +51,18 @@ namespace Common
                 }
                 catch (OperationCanceledException)
                 {
-                    Console.Error.WriteLine("Connection request received, but timeout encountered when getting confirm. ");
+                    //Console.Error.WriteLine("Connection request received, but timeout encountered when getting confirm. ");
+                    UpdateState?.Invoke(new State(ActionCode.Accept, StateCode.Error, "Connection request received, but timeout encountered when getting confirm."));
                     continue;
                 }
                 UdpSend(remoteEP, message);
-                SaveDevice(message.Key, remoteEP.Address.ToString());
+                //SaveDevice(message.Key, remoteEP.Address.ToString()); // export ??
+                UpdateState?.Invoke(new State(ActionCode.Accept, StateCode.Success, message.Key+","+remoteEP.Address.ToString()));
                 break;
             }
         }
-        public void ActivateBackgroundReceiver()
+        public void ActivateReceiver()
         {
-            //backgroundWorkHandler = CallAtBackground(() =>
-            //{
             while (true)
             {
             begin:
@@ -92,26 +102,30 @@ namespace Common
                             msg => { isText = Message.IsText(msg); meta = msg; }
                             );
                     }, Timeout);
+
+                    if (!isText)
+                    {
+                        ReceiveFile(remoteEP, meta);
+                        UpdateState?.Invoke(new State(ActionCode.FileReceive, StateCode.Success, meta.Filename));
+                    }
+                    else TcpAcceptStream(ns =>
+                    {
+                        byte[] bs = new byte[meta.Size + 1];
+                        ns.Read(bs, 0, (int)meta.Size + 1);
+                        string txt = Message.Parse(bs).Text;
+                        //Console.WriteLine(txt);
+                        UpdateState?.Invoke(new State(ActionCode.TextReceive, StateCode.Success, txt));
+                    });
                 }
                 catch (OperationCanceledException)
                 {
                     goto begin;
-                    //continue;
                 }
-                if (!isText)
+                catch (ChecksumMismatchException e)
                 {
-                    ReceiveFile(remoteEP, meta);
+                    UpdateState?.Invoke(new State(ActionCode.FileCheck, StateCode.Error, e.Message));
                 }
-                else TcpAcceptStream(ns =>
-                {
-                    byte[] bs = new byte[meta.Size + 1];
-                    ns.Read(bs, 0, (int)meta.Size + 1);
-                    string txt = Message.Parse(bs).Text;
-                    Console.WriteLine(txt);
-                });
             }
-            //});
-
         }
 
         private void ReceiveFile(IPEndPoint remoteEP, Message meta)
@@ -150,12 +164,13 @@ namespace Common
                     Array.Copy(t, 0, hash, 0, t.Length);
                     if (!hash.SequenceEqual(metahs))
                     {
-                        Console.WriteLine("Checksum not match, please resend the file.");
+                        //Console.WriteLine("Checksum not match, please resend the file.");
+                        throw new ChecksumMismatchException("Checksum not match, please resend the file.");
                     }
                 }
                 File.Delete(meta.Filename + ".meta");
             });
-            Console.WriteLine("Transfer done.");
+            //Console.WriteLine("Transfer done.");
         }
 
         private int LoadMetaFile(Message meta)
@@ -177,7 +192,7 @@ namespace Common
                 fs.Read(id, 0, 8);
                 return (int)Utils.BtoLong(id);
             }
-            else throw new Exception("Two files with same name have differed hash, please check your file or rename it.");
+            else throw new ChecksumMismatchException("Two files with same name have differed hash, please check your file or rename it.");
         }
         //private void SaveProcess(string f)
     }

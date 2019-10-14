@@ -55,7 +55,8 @@ namespace TransferAndroid
         private void ActivateListening(object sender, EventArgs eventArgs)
         {
             View view = (View)sender;
-            Snackbar.Make(view, SnRBinder.SnRService.GetString(), Snackbar.LengthLong)
+            SnRBinder.SnRService.TestService();
+            Snackbar.Make(view, "done", Snackbar.LengthLong)
                 .SetAction("Action", (Android.Views.View.IOnClickListener)null).Show();
             
         }

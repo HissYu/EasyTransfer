@@ -9,10 +9,9 @@ namespace Common
 {
     public class Sender : Core
     {
-        //public new readonly int PortUsed = SenderPort;
         int PackSize { get => 1024; }
         public Sender() : base(CoreType.Sender) { }
-        public void AddDeviceFromScanning()
+        public Device AddDeviceFromScanning()
         {
             IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, ReceiverPort);
             Message MsgSent = new Message { Pin = Utils.GeneratePin() };
@@ -43,14 +42,17 @@ namespace Common
 
                 if (confirmed)
                 {
-                    SaveDevice(MsgSent.Key, remoteEP.Address.ToString());
+                    //SaveDevice(MsgSent.Key, remoteEP.Address.ToString());
+                    return new Device { Key = MsgSent.Key,LastAddr = remoteEP.Address.ToString()};
                 }
             }
             catch (OperationCanceledException)
             {
-                Console.Error.WriteLine(status + " Timeout");
+                //Console.Error.WriteLine(status + " Timeout");
+                UpdateState?.Invoke(new State(ActionCode.Connect, StateCode.Error, status + " Timeout"));
+                return null;
             }
-
+            return null;
         }
         public void ListDevices()
         {
@@ -90,7 +92,6 @@ namespace Common
         {
 
             Message meta = Message.CreateMeta(filename, PackSize);
-            //meta.PackSize = PackSize > data.Length ? data.Length : PackSize;
             string status = "";
             long continueId = 0;
             try
@@ -128,11 +129,13 @@ namespace Common
             }
             catch (OperationCanceledException)
             {
-                Console.Error.WriteLine(status + " Timeout");
+                //Console.Error.WriteLine(status + " Timeout");
+                UpdateState?.Invoke(new State(ActionCode.FileSend, StateCode.Error, status + " Timeout"));
             }
             catch (SocketException e)
             {
-                Console.Error.WriteLine("Transfer Error");
+                //Console.Error.WriteLine("Transfer Error");
+                UpdateState?.Invoke(new State(ActionCode.FileSend, StateCode.Error, e.Message));
                 throw e;
             }
         }
@@ -152,11 +155,14 @@ namespace Common
             }
             catch (OperationCanceledException)
             {
-                Console.Error.WriteLine("Confirm Addr Timeout");
+                //Console.Error.WriteLine("Confirm Addr Timeout");
+                UpdateState?.Invoke(new State(ActionCode.TextSend, StateCode.Error, "Confirm Addr Timeout"));
+
             }
             catch (SocketException e)
             {
-                Console.Error.WriteLine("Transfer Error");
+                //Console.Error.WriteLine("Transfer Error");
+                UpdateState?.Invoke(new State(ActionCode.TextSend, StateCode.Error, e.Message));
                 throw e;
             }
         }

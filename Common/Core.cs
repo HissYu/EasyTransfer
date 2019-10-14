@@ -9,23 +9,6 @@ using System.Threading.Tasks;
 
 namespace Common
 {
-    public delegate int InitailizeProgress();
-    public delegate void UpdateProgress(int progress);
-    public class Redirection
-    {
-        public bool Handled = false;
-        public Message Message = null;
-        public Redirection(Message msg)
-        {
-            Message = msg;
-        }
-    }
-    public class Device
-    {
-        public string Name { get; set; }
-        public string Key { get; set; }
-        public string LastAddr { get; set; }
-    }
     public enum CoreType
     {
         Sender, Receiver
@@ -43,8 +26,11 @@ namespace Common
         protected readonly IPAddress LocalAddr = IPAddress.Parse(Utils.GetLocalIPAddress());
 
         static string deviceListFile = "devices";
+
+        public static Action<State> UpdateState;
         public void OnAndroidDevice()
         {
+            // Maybe use this directory on every platform
             deviceListFile = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), "devices");
         }
         public Core(CoreType t)
@@ -82,31 +68,23 @@ namespace Common
         protected void UdpSend(IPEndPoint remoteEP, Message msg)
         {
             byte[] bs = msg.ToBytes();
-            //using (UdpClient client = new UdpClient(PortUsed))
-            {
-                client.Send(bs, bs.Length, remoteEP);
-                //DEBUG
-                Console.WriteLine("Message:\n{0}\nSent to {1}:{2}", msg, remoteEP.Address.ToString(), remoteEP.Port);
-            }
+            
+            client.Send(bs, bs.Length, remoteEP);
+            
         }
         protected void UdpReceive(ref IPEndPoint remoteEP, Predicate<Message> condition, Action<Message> callback)
         {
-            //using (UdpClient client = new UdpClient(PortUsed))
+            while (true)
             {
-                while (true)
+                Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
+
+                byte[] receive = client.Receive(ref remoteEP);
+
+                Console.WriteLine("Received: {0}", Utils.ShowBytes(receive));
+                if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
                 {
-                    Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
-
-                    byte[] receive = client.Receive(ref remoteEP);
-
-                    Console.WriteLine("Received: {0}", Utils.ShowBytes(receive));
-                    if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
-                    {
-                        //DEBUG
-                        Console.WriteLine("Message:\n{0}\nReceive from {1}:{2}", rMessage, remoteEP.Address.ToString(), remoteEP.Port);
-                        callback(rMessage);
-                        return;
-                    }
+                    callback(rMessage);
+                    return;
                 }
             }
         }
@@ -117,22 +95,15 @@ namespace Common
         }
         protected void UdpMulticastReceive(ref IPEndPoint remoteEP, Predicate<Message> condition, Action<Message> callback)
         {
-            //using (UdpClient client = new UdpClient(PortUsed))
+            while (true)
             {
-                while (true)
-                {
-                    //client.JoinMulticastGroup(MulticastAddr);
-                    Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
-                    byte[] receive = client.Receive(ref remoteEP);
-                    Console.WriteLine("Received: {0}", Utils.ShowBytes(receive));
+                Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
+                byte[] receive = client.Receive(ref remoteEP);
 
-                    if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
-                    {
-                        //DEBUG
-                        Console.WriteLine("Message:\n{0}\nReceive from {1}:{2}", rMessage, remoteEP.Address.ToString(), remoteEP.Port);
-                        callback(rMessage);
-                        return;
-                    }
+                if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))
+                {
+                    callback(rMessage);
+                    return;
                 }
             }
         }
