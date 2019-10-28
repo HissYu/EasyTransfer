@@ -29,7 +29,7 @@ namespace TransferAndroid.Resources.layout
             DeviceListAdapterViewHolder vh = holder as DeviceListAdapterViewHolder;
 
             vh.DeviceName.Text = devices[position].Name;
-            vh.DeviceLastAddr.Text = devices[position].LastAddr;
+            vh.DeviceLastAddr.Text = devices[position].Addr;
         }
 
         public override RecyclerView.ViewHolder OnCreateViewHolder(ViewGroup parent, int viewType)

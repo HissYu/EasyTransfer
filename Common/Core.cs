@@ -28,6 +28,13 @@ namespace Common
         static string deviceListFile = "devices";
 
         public static Action<State> UpdateState;
+#nullable enable
+        public NewTransferEvent? OnReceivedRequest;
+        public StatusEvent? OnTransferDone;
+        public StatusEvent? OnPackTransfered;
+        public StatusEvent? OnTransferError;
+        public DeviceFoundEvent? OnDeviceFound;
+#nullable restore
         public void OnAndroidDevice()
         {
             // Maybe use this directory on every platform
@@ -127,73 +134,6 @@ namespace Common
             streamAction(ns);
             ns.Close();
             listener.Stop();
-        }
-        protected void SaveDevice(string key, string lastAddr)
-        {
-            string name = null;
-            while (true)
-            {
-                Console.Write("Device name: ");
-                name = Console.ReadLine();
-                if (!ReadDevices().Exists(d => d.Name == name))
-                {
-                    break;
-                }
-                Console.Error.WriteLine("Duplicate name, retry.");
-            }
-            using StreamWriter sw = new StreamWriter(deviceListFile);
-            sw.Write($"{(name == "" ? "unamed device" : name)}" + ',' + lastAddr + ',' + key + '\n');
-        }
-        protected void SaveDevice(Device device)
-        {
-            var devices = ReadDevices();
-            if (devices.Exists(d => d.Name == device.Name && d.Key == device.Key))
-            {
-                devices[devices.FindIndex(d => d.Name == device.Name)] = device;
-                SaveDevice(devices);
-            }
-            else
-            {
-                using StreamWriter sw = new StreamWriter(deviceListFile);
-                sw.WriteLine(device.Name + ',' + device.LastAddr + ',' + device.Key + '\n');
-            }
-        }
-        protected void SaveDevice(List<Device> devices)
-        {
-            using FileStream fs = new FileStream(deviceListFile, FileMode.Truncate);
-            foreach (var d in devices)
-            {
-                byte[] bs = Encoding.Default.GetBytes(d.Name + ',' + d.LastAddr + ',' + d.Key + '\n');
-                fs.Write(bs, 0, bs.Length);
-            }
-        }
-        public List<Device> ReadDevices()
-        {
-            List<Device> devices = new List<Device>();
-            if (!File.Exists(deviceListFile))
-            {
-                File.Create(deviceListFile).Close();
-            }
-            using (StreamReader sr = new StreamReader(deviceListFile))
-            {
-                while (!sr.EndOfStream)
-                {
-                    string line = sr.ReadLine();
-                    char[] s = new char[] { ',' };
-                    string[] i = line.Split(s, 3);
-                    devices.Add(new Device { Name = i[0], LastAddr = i[1], Key = i[2] });
-                }
-            }
-            return devices;
-        }
-        protected Device FindKey(string key2)
-        {
-            var devices = ReadDevices();
-            if (devices.Exists(s => s.Key.Contains(key2)))
-            {
-                return devices.Find(s => s.Key.Contains(key2));
-            }
-            else return null;
         }
     }
 

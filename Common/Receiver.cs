@@ -9,7 +9,6 @@ using System.Threading;
 
 namespace Common
 {
-    delegate void MessageRedirect(Redirection msg);
 
     [Serializable]
     public class ChecksumMismatchException : Exception
@@ -29,102 +28,53 @@ namespace Common
     {
         public Receiver() : base(CoreType.Receiver) { }
         //CancellationTokenSource backgroundWorkHandler;
-        public void ActivateListening()
+        
+        public void StartWorking()
         {
-            IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, SenderPort);
-            Message message = null;
-
-            while (true)
+            try
             {
-                UdpMulticastReceive(ref remoteEP,
-                    (msg) => msg.Type == MsgType.Info,
-                    (msg) => { message = msg; });
-                UdpMulticastSend(new Message { Pin = message.Pin });
-                try
-                {
-                    CallWithTimeout(() =>
-                    {
-                        UdpReceive(ref remoteEP,
-                            (msg) => msg.Type == MsgType.Key,
-                            (msg) => message = msg);
-                    }, Timeout);
-                }
-                catch (OperationCanceledException)
-                {
-                    //Console.Error.WriteLine("Connection request received, but timeout encountered when getting confirm. ");
-                    UpdateState?.Invoke(new State(ActionCode.Accept, StateCode.Error, "Connection request received, but timeout encountered when getting confirm."));
-                    continue;
-                }
-                UdpSend(remoteEP, message);
-                //SaveDevice(message.Key, remoteEP.Address.ToString()); // export ??
-                UpdateState?.Invoke(new State(ActionCode.Accept, StateCode.Success, message.Key+","+remoteEP.Address.ToString()));
-                break;
-            }
-        }
-        public void ActivateReceiver()
-        {
-            while (true)
-            {
-            begin:
                 IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, SenderPort);
-                Device device = null;
-                string key2 = null;
-                bool isText = false; Message meta = null;
-                UdpMulticastReceive(ref remoteEP,
-                    msg => msg.Type == MsgType.Confirm,
-                    msg =>
-                    {
-                        device = FindKey(msg.SemiKey);
-                        if (device != null)
-                            key2 = Utils.GenerateGuardKey(device.Key, msg.SemiKey);
-                        msg.SemiKey = key2;
-
-                    });
-                UdpSend(remoteEP, new Message { SemiKey = key2 });
-                if (device == null || key2 == "")
-                    continue;
-                try
+                while (true)
                 {
-                    CallWithTimeout(() =>
-                    {
-                        UdpReceive(ref remoteEP,
-                            msg => msg.Type == MsgType.Confirm && msg.SemiKey == key2,
-                            msg =>
+                    Message meta = null;
+                    bool isText = false;
+                    UdpMulticastReceive(ref remoteEP, msg => msg.Type != MsgType.Invalid,
+                        msg =>
+                        {
+                            if (msg.Type == MsgType.Info)
                             {
-                                device.LastAddr = remoteEP.Address.ToString();
-                                SaveDevice(device);
-                            });
-                    }, Timeout);
-                    CallWithTimeout(() =>
+                                UdpMulticastSend(new Message { Pin = msg.Pin });
+                            }
+                            else if (msg.Type == MsgType.Meta)
+                            {
+                                if (OnReceivedRequest(msg))
+                                {
+                                    meta = msg;
+                                    isText = Message.IsText(msg);
+                                }
+                            }
+                        });
+                    if (meta != null)
                     {
-                        UdpReceive(ref remoteEP,
-                            msg => msg.Type == MsgType.Meta,
-                            msg => { isText = Message.IsText(msg); meta = msg; }
-                            );
-                    }, Timeout);
-
-                    if (!isText)
-                    {
-                        ReceiveFile(remoteEP, meta);
-                        UpdateState?.Invoke(new State(ActionCode.FileReceive, StateCode.Success, meta.Filename));
+                        if (!isText)
+                        {
+                            ReceiveFile(remoteEP, meta);
+                            OnTransferDone?.Invoke(new State(ActionCode.FileReceive, StateCode.Success, meta.Filename));
+                        }
+                        else TcpAcceptStream(ns =>
+                        {
+                            byte[] bs = new byte[meta.Size + 1];
+                            ns.Read(bs, 0, (int)meta.Size + 1);
+                            string txt = Message.Parse(bs).Text;
+                            //Console.WriteLine(txt);
+                            OnTransferDone?.Invoke(new State(ActionCode.TextReceive, StateCode.Success, txt));
+                        });
                     }
-                    else TcpAcceptStream(ns =>
-                    {
-                        byte[] bs = new byte[meta.Size + 1];
-                        ns.Read(bs, 0, (int)meta.Size + 1);
-                        string txt = Message.Parse(bs).Text;
-                        //Console.WriteLine(txt);
-                        UpdateState?.Invoke(new State(ActionCode.TextReceive, StateCode.Success, txt));
-                    });
                 }
-                catch (OperationCanceledException)
-                {
-                    goto begin;
-                }
-                catch (ChecksumMismatchException e)
-                {
-                    UpdateState?.Invoke(new State(ActionCode.FileCheck, StateCode.Error, e.Message));
-                }
+            }
+            catch (ChecksumMismatchException e)
+            {
+                OnTransferError?.Invoke(new State(ActionCode.FileCheck, StateCode.Error, e.Message));
             }
         }
 
@@ -149,6 +99,8 @@ namespace Common
                         metafs.Seek(-8, SeekOrigin.End);
                         metafs.Write(Utils.GetBytes(data.PackID + 1), 0, 8);
                         fs.Flush(); metafs.Flush();
+
+                        OnPackTransfered?.Invoke(new State(ActionCode.FileReceive, StateCode.Pending, i.ToString()));
                     }
                     ns.Read(bs, 0, meta.PackSize + 9);
                     data = Message.Parse(bs);
@@ -164,13 +116,11 @@ namespace Common
                     Array.Copy(t, 0, hash, 0, t.Length);
                     if (!hash.SequenceEqual(metahs))
                     {
-                        //Console.WriteLine("Checksum not match, please resend the file.");
-                        throw new ChecksumMismatchException("Checksum not match, please resend the file.");
+                        throw new ChecksumMismatchException("Checksum not match, file may be collapsed.");
                     }
                 }
                 File.Delete(meta.Filename + ".meta");
             });
-            //Console.WriteLine("Transfer done.");
         }
 
         private int LoadMetaFile(Message meta)
@@ -194,6 +144,5 @@ namespace Common
             }
             else throw new ChecksumMismatchException("Two files with same name have differed hash, please check your file or rename it.");
         }
-        //private void SaveProcess(string f)
     }
 }

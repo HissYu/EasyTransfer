@@ -11,7 +11,7 @@ namespace Transfer
             switch (args[0])
             {
                 case "-s":
-                    sender.AddDeviceFromScanning();
+                    sender.FindDeviceAround();
                     break;
                 case "-l":
                     sender.ListDevices();

@@ -48,6 +48,7 @@ namespace Common
 
     public class Message : IMessageConfirm, IMessageContinue, IMessageFile, IMessageInfo, IMessageKey, IMessageMeta, IMessageText
     {
+        public string DeviceName { get; set; }
         public string Text { get; set; }
         public long Size { get; set; }
         public int PackSize { get; set; }
@@ -64,7 +65,7 @@ namespace Common
         {
             get =>
                 SemiKey != null ? MsgType.Confirm :
-                Pin != 0 ? MsgType.Info :
+                Pin != 0 && DeviceName != "" ? MsgType.Info :
                 Key != null ? MsgType.Key :
                 PackID != 0 ?
                     (Data != null ? MsgType.File : MsgType.Continue) :
@@ -79,7 +80,7 @@ namespace Common
 
             return (src[0]) switch
             {
-                0 => new Message { Pin = (int)Utils.BtoNum(bs.Slice(1, 3).ToArray(), 3) },
+                0 => new Message { Pin = (int)Utils.BtoNum(bs.Slice(1, 3).ToArray(), 3), DeviceName = Utils.BtoString(bs.Slice(4).ToArray()) },
                 1 => new Message { Key = Utils.BtoString(bs.Slice(1).ToArray()) },
                 2 => new Message { SemiKey = Utils.BtoString(bs.Slice(1).ToArray()) },
                 3 => new Message { Size = Utils.BtoLong(bs.Slice(1, 8).ToArray()), PackSize = Utils.BtoInt(bs.Slice(9, 4).ToArray()), PackCount = Utils.BtoLong(bs.Slice(13, 8).ToArray()), Hash = bs.Slice(21, 256).ToArray(), Filename = Utils.BtoString(bs.Slice(277).ToArray()) },
@@ -121,9 +122,10 @@ namespace Common
             switch (Type)
             {
                 case MsgType.Info:
-                    bs = new byte[1 + 3];
+                    bs = new byte[1 + 3 + DeviceName.Length];
                     bs[0] = 0;
                     Array.Copy(Utils.GetBytes(Pin, 3), 0, bs, 1, 3);
+                    Array.Copy(Utils.GetBytes(DeviceName), 0, bs, 4, DeviceName.Length);
                     return bs;
                 case MsgType.Key:
                     bs = new byte[Key.Length + 1];

@@ -1,7 +1,10 @@
-﻿namespace Common
+﻿using System.Collections.Generic;
+
+namespace Common
 {
-    public delegate int InitailizeProgress();
-    public delegate void UpdateProgress(int progress);
+    public delegate bool NewTransferEvent(Message meta);
+    public delegate void StatusEvent(State newState);
+    public delegate void DeviceFoundEvent(List<Device> devices);
     public class Redirection
     {
         public bool Handled = false;
@@ -14,8 +17,7 @@
     public class Device
     {
         public string Name { get; set; }
-        public string Key { get; set; }
-        public string LastAddr { get; set; }
+        public string Addr { get; set; }
     }
     public enum StateCode
     {
@@ -23,11 +25,11 @@
     }
     public enum ActionCode
     {
-        Accept,
+        DeviceFound,
         FileReceive,
         TextReceive,
         FileCheck,
-        Connect,
+        FilePackProgress,
         FileSend,
         TextSend
     }

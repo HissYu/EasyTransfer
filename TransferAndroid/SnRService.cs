@@ -44,7 +44,7 @@ namespace TransferAndroid
         {
             //sender.AddDeviceFromScanning();
 #nullable enable
-            Device? device = await Task.Run(sender.AddDeviceFromScanning);
+            Device? device = await Task.Run(sender.FindDeviceAround);
 #nullable disable
 
         }
