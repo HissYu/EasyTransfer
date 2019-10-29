@@ -2,7 +2,7 @@
 
 namespace Common
 {
-    public delegate bool NewTransferEvent(Message meta);
+    public delegate bool NewTransferEvent(Message meta, bool isText);
     public delegate void StatusEvent(State newState);
     public delegate void DeviceFoundEvent(List<Device> devices);
     public class Redirection

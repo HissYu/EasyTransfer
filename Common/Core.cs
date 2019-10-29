@@ -27,13 +27,13 @@ namespace Common
 
         static string deviceListFile = "devices";
 
-        public static Action<State> UpdateState;
+        //public static Action<State> UpdateState;
 #nullable enable
-        public NewTransferEvent? OnReceivedRequest;
-        public StatusEvent? OnTransferDone;
-        public StatusEvent? OnPackTransfered;
-        public StatusEvent? OnTransferError;
-        public DeviceFoundEvent? OnDeviceFound;
+        public static NewTransferEvent? OnReceivedRequest;
+        public static StatusEvent? OnTransferDone;
+        public static StatusEvent? OnPackTransfered;
+        public static StatusEvent? OnTransferError;
+        public static DeviceFoundEvent? OnDeviceFound;
 #nullable restore
         public void OnAndroidDevice()
         {

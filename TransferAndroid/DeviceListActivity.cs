@@ -21,7 +21,7 @@ namespace TransferAndroid
         RecyclerView devicelist;
         RecyclerView.LayoutManager dlLayoutManager;
         Resources.layout.DeviceListAdapter deviceListAdapter;
-        List<Device> devices;
+        //List<Device> devices;
         protected override void OnCreate(Bundle savedInstanceState)
         {
             base.OnCreate(savedInstanceState);
@@ -30,29 +30,19 @@ namespace TransferAndroid
             Receiver r = new Receiver();
             
             r.OnAndroidDevice();
-            devices = s.ReadDevices();
-            devices.Add(new Device { Name = "test1", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test2", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test3", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test4", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test5", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test6", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test7", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test8", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test9", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test10", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test11", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test12", Addr = "127.0.0.1" });
-            devices.Add(new Device { Name = "test13", Addr = "127.0.0.1" });
-
+            Core.OnDeviceFound += (devices) =>
+            {
+                deviceListAdapter = new Resources.layout.DeviceListAdapter(devices);
+            };
 
             SetContentView(Resource.Layout.app_bar_device_list);
             
             devicelist = FindViewById<RecyclerView>(Resource.Id.device_list);
             dlLayoutManager = new LinearLayoutManager(this);
             devicelist.SetLayoutManager(dlLayoutManager);
-            
-            deviceListAdapter = new Resources.layout.DeviceListAdapter(devices);
+
+            //deviceListAdapter = new Resources.layout.DeviceListAdapter(devices);
+            s.FindDeviceAround();
             deviceListAdapter.ItemLongClick += OnItemLongClick;
             devicelist.SetAdapter(deviceListAdapter);
         }

@@ -43,14 +43,18 @@ namespace Common
                         {
                             if (msg.Type == MsgType.Info)
                             {
-                                UdpMulticastSend(new Message { Pin = msg.Pin });
+                                UdpMulticastSend(new Message { Pin = msg.Pin, DeviceName = Utils.GetDeviceName() });
                             }
                             else if (msg.Type == MsgType.Meta)
                             {
-                                if (OnReceivedRequest(msg))
+                                if (OnReceivedRequest(msg, Message.IsText(msg)))
                                 {
                                     meta = msg;
                                     isText = Message.IsText(msg);
+                                }
+                                else
+                                {
+                                    UdpSend(remoteEP, new Message { PackID = -1 });
                                 }
                             }
                         });

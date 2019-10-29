@@ -22,31 +22,12 @@ namespace TransferAndroid
 
         bool receiverOccupied = false;
         readonly CancellationTokenSource receiverWorker = new CancellationTokenSource();
-        public async void ActivateListening()
+        public void ActivateListening()
         {
-            if (receiverOccupied)
+            Task.Run(() =>
             {
-                receiverWorker.Cancel();
-            }
-            receiverOccupied = true;
-            await Task.Run(receiver.ActivateListening,receiverWorker.Token);
-        }
-        public async void StartReceiving()
-        {
-            if (receiverOccupied)
-            {
-                receiverWorker.Cancel();
-            }
-            receiverOccupied = true;
-            await Task.Run(receiver.ActivateReceiver,receiverWorker.Token);
-        }
-        public async void LookForDevice()
-        {
-            //sender.AddDeviceFromScanning();
-#nullable enable
-            Device? device = await Task.Run(sender.FindDeviceAround);
-#nullable disable
-
+                receiver.StartWorking();
+            }, receiverWorker.Token);
         }
         public async void TestService()
         {
@@ -62,6 +43,27 @@ namespace TransferAndroid
             sender = new Sender();
             receiver = new Receiver();
             sender.OnAndroidDevice();
+            
+            Core.OnReceivedRequest += (meta,isText)=> {
+                if (isText)
+                    return true;
+                
+                bool result = false;
+                (new Handler()).Post(() =>
+                {
+                    string message = $"Filename: {meta.Filename}\nSize: {meta.PackCount*meta.PackSize/1024}MB";
+                    AlertDialog.Builder builder = new AlertDialog.Builder(this);
+                    AlertDialog dialog = builder.SetTitle("New transfer request, accept it?")
+                        .SetMessage(message)
+                        .SetNegativeButton("Cancel", (s, e) => { result = false; })
+                        .SetPositiveButton("Accept", (s, e) => { result = true; })
+                        .Create();
+                    dialog.Show();
+                });
+                return result;
+            };
+
+            ActivateListening();
         }
 
         [return: GeneratedEnum]
@@ -76,6 +78,7 @@ namespace TransferAndroid
             //return null;
         }
     }
+    
 
     public class SnRBinder : Binder
     {

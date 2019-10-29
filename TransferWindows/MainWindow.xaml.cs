@@ -12,6 +12,7 @@ using System.Windows.Media;
 using System.Windows.Media.Imaging;
 using System.Windows.Navigation;
 using System.Windows.Shapes;
+using Common;
 
 namespace TransferWindows
 {
@@ -20,9 +21,27 @@ namespace TransferWindows
     /// </summary>
     public partial class MainWindow : Window
     {
+        private Sender sender = new Sender();
+        private Receiver receiver = new Receiver();
         public MainWindow()
         {
             InitializeComponent();
+            Core.OnDeviceFound += (devices) =>
+            {
+                AroundDeviceList.ItemsSource = devices;
+            };
+            
+            //List<Device> devices = new List<Device>();
+            //devices.Add(new Device { Name = "1", Addr = "10.9.9.9" });
+            //devices.Add(new Device { Name = "2", Addr = "10.9.9.10" });
+            //AroundDeviceList.ItemsSource = devices;
+
+            GetDeviceAround();
+        }
+
+        private void GetDeviceAround()
+        {
+            sender.FindDeviceAround();
         }
     }
 }

@@ -31,10 +31,10 @@ namespace TransferAndroid
 
             //EnableSharing();
 
-            FloatingActionButton fabListen = FindViewById<FloatingActionButton>(Resource.Id.listen);
+            //FloatingActionButton fabListen = FindViewById<FloatingActionButton>(Resource.Id.listen);
             FloatingActionButton fabSend = FindViewById<FloatingActionButton>(Resource.Id.send);
-            fabListen.Click += ActivateListening;
-            fabSend.Click += SendSignal;
+            //fabListen.Click += ActivateListening;
+            //fabSend.Click += SendSignal;
 
             DrawerLayout drawer = FindViewById<DrawerLayout>(Resource.Id.drawer_layout);
             ActionBarDrawerToggle toggle = new ActionBarDrawerToggle(this, drawer, toolbar, Resource.String.navigation_drawer_open, Resource.String.navigation_drawer_close);
@@ -51,19 +51,6 @@ namespace TransferAndroid
             base.OnResume();
             SnRServiceConnection serviceConnection = new SnRServiceConnection(this);
             BindService(new Intent(this, typeof(SnRService)), serviceConnection, Bind.AutoCreate);
-        }
-        private void ActivateListening(object sender, EventArgs eventArgs)
-        {
-            View view = (View)sender;
-            SnRBinder.SnRService.TestService();
-            Snackbar.Make(view, "done", Snackbar.LengthLong)
-                .SetAction("Action", (Android.Views.View.IOnClickListener)null).Show();
-            
-        }
-
-        private void SendSignal(object sender, EventArgs e)
-        {
-            
         }
 
         private void EnableSharing()
@@ -105,9 +92,6 @@ namespace TransferAndroid
 
             return base.OnOptionsItemSelected(item);
         }
-
-        
-        
 
         public bool OnNavigationItemSelected(IMenuItem item)
         {

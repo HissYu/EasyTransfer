@@ -22,21 +22,31 @@ namespace Common
             {
                 aSocket = CallAtBackground(() =>
                 {
-                    Message MsgSent = new Message();
-                    while (true)
+                    try
                     {
-                        List<Device> devicesFound = new List<Device>();
-                        MsgSent.Pin = Utils.GeneratePin();
-                        UdpMulticastSend(MsgSent);
-                        CallWithTimeout(() =>
+                        Message MsgSent = new Message();
+                        while (true)
                         {
-                            UdpMulticastReceive(ref remoteEP,
-                                (msg) => msg.Type == MsgType.Info && msg.Pin == MsgSent.Pin,
-                                (msg) => {
-                                    devicesFound.Add(new Device { Addr = remoteEP.Address.ToString(), Name = msg.DeviceName });
-                                });
-                        }, 2000);
-                        OnDeviceFound?.Invoke(devicesFound);
+                            List<Device> devicesFound = new List<Device>();
+                            MsgSent.Pin = Utils.GeneratePin();
+                            MsgSent.DeviceName = Utils.GetDeviceName();
+                            UdpMulticastSend(MsgSent);
+                            CallWithTimeout(() =>
+                            {
+                                while (true)
+                                {
+                                    UdpMulticastReceive(ref remoteEP,
+                                    (msg) => msg.Type == MsgType.Info && msg.Pin == MsgSent.Pin,
+                                    (msg) => {
+                                        devicesFound.Add(new Device { Addr = remoteEP.Address.ToString(), Name = msg.DeviceName });
+                                    });
+                                }
+                            }, 2000);
+                            OnDeviceFound?.Invoke(devicesFound);
+                        }
+                    }
+                    catch (OperationCanceledException)
+                    {
                     }
                 });
             }
@@ -60,12 +70,17 @@ namespace Common
                 status = "Wait Confirmation";
                 IPEndPoint remoteEP = new IPEndPoint(IPAddress.Parse(addr),ReceiverPort);
                 UdpSend(remoteEP, meta);
-                CallWithTimeout(() =>
+                
+                UdpReceive(ref remoteEP,
+                    (msg) => msg.Type == MsgType.Continue,
+                    (msg) => continueId = msg.PackID);
+
+                if (continueId == -1)
                 {
-                    UdpReceive(ref remoteEP,
-                        (msg) => msg.Type == MsgType.Continue,
-                        (msg) => continueId = msg.PackID);
-                }, 10000);
+                    OnTransferError?.Invoke(new State(ActionCode.FileSend, StateCode.Error, "Request rejected"));
+                    return;
+                }
+
                 remoteEP.Port = TransferPort;
                 status = "Transferring";
 

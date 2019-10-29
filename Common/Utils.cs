@@ -14,6 +14,10 @@ namespace Common
         //{
         //    return (DateTime.Now - DateTime.UnixEpoch).TotalMilliseconds.ToString().Split('.')[0];
         //}
+        public static string GetDeviceName()
+        {
+            return Dns.GetHostName();
+        }
         public static string GetLocalIPAddress()
         {
             //Console.WriteLine(Dns.GetHostName());
