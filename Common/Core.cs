@@ -25,7 +25,9 @@ namespace Common
         protected readonly IPAddress MulticastAddr = IPAddress.Parse("234.2.3.4");
         protected readonly IPAddress LocalAddr = IPAddress.Parse(Utils.GetLocalIPAddress());
 
-        static string deviceListFile = "devices";
+        //static string deviceListFile = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), "Transferer\\devices");
+        //static string historyFile = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), "Transferer\\history");
+        //static string downloadedFolder = Path.Combine(System.Environment.GetFolderPath(Environment.SpecialFolder.D))
 
         //public static Action<State> UpdateState;
 #nullable enable
@@ -35,11 +37,11 @@ namespace Common
         public static StatusEvent? OnTransferError;
         public static DeviceFoundEvent? OnDeviceFound;
 #nullable restore
-        public void OnAndroidDevice()
-        {
-            // Maybe use this directory on every platform
-            deviceListFile = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), "devices");
-        }
+        //public void SetPath()
+        //{
+        //    // Maybe use this directory on every platform
+        //    deviceListFile = Path.Combine(System.Environment.GetFolderPath(System.Environment.SpecialFolder.Personal), "devices");
+        //}
         public Core(CoreType t)
         {
             switch (t)
@@ -58,12 +60,12 @@ namespace Common
             client = new UdpClient(PortUsed);
             client.JoinMulticastGroup(MulticastAddr);
         }
-        protected void CallWithTimeout(Action action, int miliseconds)
+        protected async Task CallWithTimeout(Action action, int miliseconds)
         {
-            Task wrapper = new Task(() => action());
             using CancellationTokenSource cancellation = new CancellationTokenSource(miliseconds);
-            wrapper.Start();
-            wrapper.Wait(cancellation.Token);
+            Task task = Task.Run(() => action(), cancellation.Token);
+            await Task.Delay(2000);
+            cancellation.Cancel();
         }
         protected CancellationTokenSource CallAtBackground(Action action)
         {
@@ -104,7 +106,7 @@ namespace Common
         {
             while (true)
             {
-                Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
+                //Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
                 byte[] receive = client.Receive(ref remoteEP);
 
                 if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))

@@ -22,26 +22,29 @@ namespace TransferWindows
     public partial class MainWindow : Window
     {
         private Sender sender = new Sender();
-        private Receiver receiver = new Receiver();
+        //private Receiver receiver = new Receiver();
         public MainWindow()
         {
             InitializeComponent();
-            Core.OnDeviceFound += (devices) =>
-            {
-                AroundDeviceList.ItemsSource = devices;
+            Core.OnDeviceFound += delegate (List<Device> devices) {
+                AroundDeviceList.Dispatcher.Invoke(() =>
+                {
+                    AroundDeviceList.ItemsSource = devices;
+                });
             };
-            
+
             //List<Device> devices = new List<Device>();
             //devices.Add(new Device { Name = "1", Addr = "10.9.9.9" });
             //devices.Add(new Device { Name = "2", Addr = "10.9.9.10" });
             //AroundDeviceList.ItemsSource = devices;
-
-            GetDeviceAround();
+            
+            StartBackground();
         }
 
-        private void GetDeviceAround()
+        private void StartBackground()
         {
             sender.FindDeviceAround();
+            //receiver.StartWorking();
         }
     }
 }

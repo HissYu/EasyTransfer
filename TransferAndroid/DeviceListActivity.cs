@@ -29,7 +29,7 @@ namespace TransferAndroid
             Sender s = new Sender();
             Receiver r = new Receiver();
             
-            r.OnAndroidDevice();
+            r.SetPath();
             Core.OnDeviceFound += (devices) =>
             {
                 deviceListAdapter = new Resources.layout.DeviceListAdapter(devices);

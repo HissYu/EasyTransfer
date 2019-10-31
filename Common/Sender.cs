@@ -18,41 +18,41 @@ namespace Common
         public void FindDeviceAround()
         {
             IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, ReceiverPort);
-            try
+            
+            aSocket = CallAtBackground(async () =>
             {
-                aSocket = CallAtBackground(() =>
+                try
                 {
-                    try
+                    Message MsgSent = new Message();
+                    List<Device> devicesFound = new List<Device>();
+                    while (true)
                     {
-                        Message MsgSent = new Message();
-                        while (true)
+                        devicesFound.Clear();
+                        MsgSent.Pin = Utils.GeneratePin();
+                        MsgSent.DeviceName = Utils.GetDeviceName();
+                        UdpMulticastSend(MsgSent);
+
+
+                        await CallWithTimeout(() =>
                         {
-                            List<Device> devicesFound = new List<Device>();
-                            MsgSent.Pin = Utils.GeneratePin();
-                            MsgSent.DeviceName = Utils.GetDeviceName();
-                            UdpMulticastSend(MsgSent);
-                            CallWithTimeout(() =>
+                            while (true)
                             {
-                                while (true)
-                                {
-                                    UdpMulticastReceive(ref remoteEP,
+                                UdpMulticastReceive(ref remoteEP,
                                     (msg) => msg.Type == MsgType.Info && msg.Pin == MsgSent.Pin,
-                                    (msg) => {
+                                    (msg) =>
+                                    {
                                         devicesFound.Add(new Device { Addr = remoteEP.Address.ToString(), Name = msg.DeviceName });
                                     });
-                                }
-                            }, 2000);
-                            OnDeviceFound?.Invoke(devicesFound);
-                        }
+                            }
+                        },3000);
+                        OnDeviceFound?.Invoke(devicesFound);
                     }
-                    catch (OperationCanceledException)
-                    {
-                    }
-                });
-            }
-            catch (OperationCanceledException)
-            {
-            }
+                }
+                catch (OperationCanceledException)
+                {
+                }
+            });
+            
         }
         public void StopBackgroudWork()
         {

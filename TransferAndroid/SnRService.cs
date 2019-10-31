@@ -42,7 +42,7 @@ namespace TransferAndroid
             base.OnCreate();
             sender = new Sender();
             receiver = new Receiver();
-            sender.OnAndroidDevice();
+            sender.SetPath();
             
             Core.OnReceivedRequest += (meta,isText)=> {
                 if (isText)
