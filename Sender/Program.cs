@@ -19,7 +19,10 @@ namespace Transfer
                 });
             };
             sender.FindDeviceAround();
-            
+            while (true)
+            {
+                Console.ReadKey();
+            }
         }
     }
 }

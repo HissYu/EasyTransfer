@@ -59,10 +59,11 @@ namespace Common
             aSocket.Cancel();
             aSocket = null;
         }
-        public void SendFile(string addr, string filename)
+        public void SendFile(string addr, string filepath)
         {
             aSocket?.Cancel();
-            Message meta = Message.CreateMeta(filename, PackSize);
+            //string filename = Path.GetFileName(filepath);
+            Message meta = Message.CreateMeta(filepath, PackSize);
             string status = "";
             long continueId = 0;
             try
@@ -86,7 +87,7 @@ namespace Common
 
                 TcpSetupStream(remoteEP, ns =>
                 {
-                    using FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read);
+                    using FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read);
                     byte[] bs = null;
                     Message dataMsg = new Message { PackID = continueId, Data = new byte[PackSize] };
                     fs.Seek((continueId - 1) * PackSize, SeekOrigin.Begin);
@@ -105,7 +106,7 @@ namespace Common
                     ns.Write(bs, 0, bs.Length);
                     ns.Flush();
                 });
-                OnTransferDone(new State(ActionCode.FileSend, StateCode.Success, ""));
+                OnTransferDone?.Invoke(new State(ActionCode.FileSend, StateCode.Success, ""));
             }
             catch (OperationCanceledException)
             {
@@ -131,7 +132,7 @@ namespace Common
                     byte[] bs = message.ToBytes();
                     ns.Write(bs, 0, bs.Length);
                 });
-                OnTransferDone(new State(ActionCode.TextSend, StateCode.Success, ""));
+                OnTransferDone?.Invoke(new State(ActionCode.TextSend, StateCode.Success, ""));
             }
             catch (OperationCanceledException)
             {

@@ -106,7 +106,7 @@ namespace Common
         {
             while (true)
             {
-                //Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
+                Console.WriteLine("Start listening at {0}:{1}", remoteEP.Address, remoteEP.Port);
                 byte[] receive = client.Receive(ref remoteEP);
 
                 if (Message.TryParse(receive, out Message rMessage) && condition(rMessage))

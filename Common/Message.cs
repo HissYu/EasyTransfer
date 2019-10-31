@@ -99,7 +99,7 @@ namespace Common
             using FileStream fs = new FileStream(filename, FileMode.Open, FileAccess.Read);
             t = s.ComputeHash(fs);
             Array.Copy(t, 0, hash, 0, t.Length);
-            return new Message { Filename = filename, Size = fs.Length, PackSize = packSize, PackCount = (long)Math.Ceiling((double)fs.Length / packSize), Hash = hash };
+            return new Message { Filename = Path.GetFileName(filename), Size = fs.Length, PackSize = packSize, PackCount = (long)Math.Ceiling((double)fs.Length / packSize), Hash = hash };
         }
         public static Message CreateTextMeta(int textLength) => new Message { Filename = "", Size = textLength, PackSize = -1, Hash = new byte[256], PackCount = -1 };
         public static bool IsText(Message message) => message.Filename == "" && message.PackSize == -1 && message.PackCount == -1 && message.Hash[0] == 0;
@@ -138,13 +138,14 @@ namespace Common
                     Array.Copy(Utils.GetBytes(SemiKey), 0, bs, 1, SemiKey.Length);
                     return bs;
                 case MsgType.Meta:
-                    bs = new byte[1 + 8 + 8 + 4 + 256 + Filename.Length];
+                    byte[] fnbs = Utils.GetBytes(Filename);
+                    bs = new byte[1 + 8 + 8 + 4 + 256 + fnbs.Length];
                     bs[0] = 3;
                     Array.Copy(Utils.GetBytes(Size), 0, bs, 1, 8);
                     Array.Copy(Utils.GetBytes(PackSize), 0, bs, 9, 4);
                     Array.Copy(Utils.GetBytes(PackCount), 0, bs, 13, 8);
                     Array.Copy(Hash, 0, bs, 21, 256);
-                    Array.Copy(Utils.GetBytes(Filename), 0, bs, 277, Filename.Length);
+                    Array.Copy(fnbs, 0, bs, 277, fnbs.Length);
                     return bs;
                 case MsgType.Continue:
                     bs = new byte[1 + 8];
@@ -158,9 +159,10 @@ namespace Common
                     Array.Copy(Data, 0, bs, 9, Data.Length);
                     return bs;
                 case MsgType.Text:
-                    bs = new byte[1 + Text.Length];
+                    byte[] tbs = Utils.GetBytes(Text);
+                    bs = new byte[1 + tbs.Length];
                     bs[0] = 6;
-                    Array.Copy(Utils.GetBytes(Text), 0, bs, 1, Text.Length);
+                    Array.Copy(tbs, 0, bs, 1, tbs.Length);
                     return bs;
                 case MsgType.Invalid:
                     throw new ArgumentException("Message Invalid.");

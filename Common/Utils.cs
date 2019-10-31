@@ -14,6 +14,30 @@ namespace Common
         //{
         //    return (DateTime.Now - DateTime.UnixEpoch).TotalMilliseconds.ToString().Split('.')[0];
         //}
+        public static string FormatFileSize(long filesize)
+        {
+            if (filesize < 0)
+            {
+                return "0";
+            }
+            else if (filesize >= 1024 * 1024 * 1024)
+            {
+                return string.Format("{0:#.00} GB", (double)filesize / (1024 * 1024 * 1024));
+            }
+            else if (filesize >= 1024 * 1024)
+            {
+                return string.Format("{0:#.00} MB", (double)filesize / (1024 * 1024));
+            }
+            else if (filesize >= 1024)
+            {
+                return string.Format("{0:#.00} KB", (double)filesize / 1024);
+            }
+            else
+            {
+                return string.Format("{0:#} bytes", filesize);
+            }
+        }
+
         public static string GetDeviceName()
         {
             return Dns.GetHostName();
@@ -122,7 +146,7 @@ namespace Common
             }
             return t;
         }
-        public static byte[] GetBytes(string src) { return Encoding.Default.GetBytes(src); }
+        public static byte[] GetBytes(string src) { return Encoding.UTF8.GetBytes(src); }
         public static byte[] GetBytes(long src, int size)
         {
             int len = size;
@@ -141,7 +165,7 @@ namespace Common
         //public static byte[] GetBytes()
         public static IPAddress BtoIP(byte[] src) { return IPAddress.Parse(BtoIPstr(src)); }
         public static string BtoIPstr(byte[] src) { return $"{src[0]}.{src[1]}.{src[2]}.{src[3]}"; }
-        public static string BtoString(byte[] src) { return Encoding.Default.GetString(src); }
+        public static string BtoString(byte[] src) { return Encoding.UTF8.GetString(src); }
         public static long BtoNum(byte[] src, int size)
         {
             int len = size;
@@ -168,11 +192,5 @@ namespace Common
             Array.Copy(src, start, newb, 0, src.Length - start);
             return newb;
         }
-        //public static bool BytesEqual(byte[] src1, byte[] src2)
-        //{
-        //    if (src1.Length!=src2.Length)
-        //        return false;
-        //    //src1.
-        //}
     }
 }
