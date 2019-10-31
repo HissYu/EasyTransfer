@@ -4,7 +4,7 @@ A small tool for transferring files between devices within the same LAN.
 ## User Guide
 Currently this project is still in development, but you may have a taste.
 
-**We don't have excutables exported temporily**, so you need `Visual Studio 2019` and `dotnet core sdk 2.2` to complete compilation, and you can compile it to any platform supported by .Net Core.
+**We don't have excutables exported temporily**, so you need `Visual Studio 2019` and `dotnet core sdk 3.0` to complete compilation, and you can compile it to any platform supported by .Net Core.
 
 ### Core
 > Owing to modification to adapt to UI, the Core hardly works properly. Update will comes after excuteable UI versions. 
