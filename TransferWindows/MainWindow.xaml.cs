@@ -23,17 +23,35 @@ namespace TransferWindows
     /// </summary>
     public partial class MainWindow : Window
     {
-        private Sender sender = new Sender();
+        private Sender sender;
         //private Receiver receiver = new Receiver();
-        private CancellationTokenSource current = new CancellationTokenSource();
+        private CancellationTokenSource current;
+        private Status status = new Status { DeviceName = "test", FileName = "file Test", Current = 0, PackCount = 100 };
+
         public MainWindow()
         {
             InitializeComponent();
+            
+            current = new CancellationTokenSource();
+            sender = new Sender(ref current);
+
+            StatusBar.DataContext = status;
+            
+            
+            BindEvent();
+            StartBackground();
+        }
+
+        private void BindEvent()
+        {
             Core.OnDeviceFound += (List<Device> devices) => {
-                AroundDeviceList.Dispatcher.Invoke(() =>
+                if (devices.Count>0)
                 {
-                    AroundDeviceList.ItemsSource = devices;
-                });
+                    AroundDeviceList.Dispatcher.Invoke(() =>
+                    {
+                        AroundDeviceList.ItemsSource = devices;
+                    });
+                }
             };
             Core.OnReceivedRequest += (meta, isText) =>
             {
@@ -41,12 +59,15 @@ namespace TransferWindows
                 MessageBoxResult result = MessageBox.Show($"Filename: {meta.Filename}\nSize: {Utils.FormatFileSize(meta.PackCount * meta.PackSize)}", "New file to send to your device, accept?", MessageBoxButton.OKCancel);
                 return result == MessageBoxResult.OK;
             };
-            StartBackground();
+            Core.OnPackTransfered += (process) =>
+            {
+                status.Update(new Status { Current = process });
+            };
         }
 
         private void StartBackground()
         {
-            sender.FindDeviceAround();
+            sender.FindDeviceAroundAsync();
             //receiver.StartWorking();
         }
 
@@ -63,11 +84,9 @@ namespace TransferWindows
             }
             string addr = (AroundDeviceList.SelectedItem as Device).Addr;
             string clipb = Clipboard.GetText();
-            Task.Run(() =>
-            {
-                this.sender.SendText(addr, clipb);
-            }, current.Token);
-            StopButton.IsEnabled = true;
+
+            this.sender.SendTextAsync(addr, clipb);
+            //StopButton.IsEnabled = true;
         }
 
         private void SendFileButton_Click(object sender, RoutedEventArgs e)
@@ -86,18 +105,24 @@ namespace TransferWindows
             if (result == true)
             {
                 string filename = dlg.FileName;
-
-                Task.Run(() =>
-                {
-                    this.sender.SendFile(addr, filename);
-                }, current.Token);
+                status.Update(new Status { FileName = System.IO.Path.GetFileName(filename) });
+                
+                this.sender.SendFileAsync(addr, filename);
                 StopButton.IsEnabled = true;
             }
         }
 
         private void StopButton_Click(object sender, RoutedEventArgs e)
         {
-            current.Cancel();
+            //current.Cancel();
+            this.sender.FindDeviceAroundAsync();
+            status.Update(new Status { Current = 0,FileName="" });
+            StopButton.IsEnabled = false;
+        }
+
+        private void AroundDeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            status.Update(new Status { DeviceName = ((sender as ListBox).SelectedItem as Device)?.Name });
         }
     }
 }

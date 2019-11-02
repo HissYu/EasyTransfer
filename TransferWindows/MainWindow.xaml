@@ -15,7 +15,7 @@
             <ColumnDefinition Width="129*"/>
             <ColumnDefinition Width="31*"/>
         </Grid.ColumnDefinitions>
-        <ListBox Name="AroundDeviceList" Grid.Column="0" Grid.ColumnSpan="1" Margin="0,0,0,0">
+        <ListBox Name="AroundDeviceList" Grid.Column="0" Grid.ColumnSpan="1" Margin="0,0,0,0" SelectionChanged="AroundDeviceList_SelectionChanged">
             <ListBox.ItemTemplate>
                 <DataTemplate>
                     <StackPanel>
@@ -29,7 +29,32 @@
             <Button x:Name="SendFileButton" Content="Send File" Grid.Column="1"  Height="30" Margin="10,0,10,10" Click="SendFileButton_Click" />
             <Button x:Name="SendClipboardButton" Content="Send Clipboard" Grid.Column="1" Height="30" Margin="10,0,10,10" Click="SendClipboardButton_Click"/>
         </StackPanel>
-        <StatusBar  Grid.Row="1" Grid.ColumnSpan="2" Height="27"/>
+        <StatusBar x:Name="StatusBar"  Grid.Row="1" Grid.ColumnSpan="2" Height="27">
+            <StatusBar.ItemsPanel>
+                <ItemsPanelTemplate>
+                    <Grid>
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="250" />
+                            <ColumnDefinition Width="Auto" />
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="Auto"/>
+                            <ColumnDefinition Width="200"/>
+                        </Grid.ColumnDefinitions>
+                    </Grid>
+                </ItemsPanelTemplate>
+            </StatusBar.ItemsPanel>
+            <StatusBarItem Grid.Column="0">
+                <TextBlock x:Name="DNameText" Text="{Binding DeviceName,Mode=OneWay}"/>
+            </StatusBarItem>
+            <Separator Grid.Column="1"/>
+            <StatusBarItem Grid.Column="2">
+                <TextBlock x:Name="FNameText" Text="{Binding FileName}"/>
+            </StatusBarItem>
+            <Separator Grid.Column="3"/>
+            <StatusBarItem Grid.Column="4" HorizontalContentAlignment="Center">
+                <ProgressBar Width="190" Height="20" x:Name="SendProgressBar" Value="{Binding Current}" Maximum="{Binding PackCount}"/>
+            </StatusBarItem>
+        </StatusBar>
         <Button x:Name="StopButton" Content="Stop Current Transfer" Grid.Column="1" HorizontalAlignment="Center" Margin="0,35,0,0" VerticalAlignment="Top" Width="135" Height="30" Click="StopButton_Click" IsEnabled="False"/>
 
     </Grid>

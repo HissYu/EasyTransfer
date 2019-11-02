@@ -29,68 +29,66 @@ namespace Common
         public Receiver() : base(CoreType.Receiver) { }
         //CancellationTokenSource backgroundWorkHandler;
         CancellationTokenSource aSocket;
-        
+
         public void StartWorking()
         {
-            aSocket = CallAtBackground(() =>
+            try
             {
-                try
+                IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, SenderPort);
+                while (true)
                 {
-                    IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, SenderPort);
-                    while (true)
-                    {
-                        Message meta = null;
-                        bool isText = false;
-                        UdpMulticastReceive(ref remoteEP,
-                            msg => msg.Type != MsgType.Invalid,
-                            msg =>
-                            {
-                                if (msg.Type == MsgType.Info)
-                                {
-                                    UdpMulticastSend(new Message { Pin = msg.Pin, DeviceName = Utils.GetDeviceName() });
-                                }
-                                else if (msg.Type == MsgType.Meta)
-                                {
-                                    if (OnReceivedRequest(msg, Message.IsText(msg)))
-                                    {
-                                        meta = msg;
-                                        isText = Message.IsText(msg);
-                                    }
-                                    else
-                                    {
-                                        UdpSend(remoteEP, new Message { PackID = -1 });
-                                    }
-                                }
-                            });
-                        if (meta != null)
+                    Message meta = null;
+                    bool isText = false;
+                    UdpMulticastReceive(ref remoteEP,
+                        msg => msg.Type != MsgType.Invalid,
+                        msg =>
                         {
-                            if (!isText)
+                            if (msg.Type == MsgType.Info)
                             {
-                                ReceiveFile(remoteEP, meta);
-                                OnTransferDone?.Invoke(new State(ActionCode.FileReceive, StateCode.Success, meta.Filename));
+                                UdpMulticastSend(new Message { Pin = msg.Pin, DeviceName = Utils.GetDeviceName() });
                             }
-                            else TcpAcceptStream(ns =>
+                            else if (msg.Type == MsgType.Meta)
                             {
-                                byte[] bs = new byte[meta.Size + 1];
-                                ns.Read(bs, 0, (int)meta.Size + 1);
-                                string txt = Message.Parse(bs).Text;
+                                if (OnReceivedRequest(msg, Message.IsText(msg)))
+                                {
+                                    meta = msg;
+                                    isText = Message.IsText(msg);
+                                }
+                                else
+                                {
+                                    UdpSend(remoteEP, new Message { PackID = -1 });
+                                }
+                            }
+                        });
+                    if (meta != null)
+                    {
+                        if (!isText)
+                        {
+                            ReceiveFile(remoteEP, meta);
+                            OnTransferDone?.Invoke(new State(ActionCode.FileReceive, StateCode.Success, meta.Filename));
+                        }
+                        else TcpAcceptStream(ns =>
+                        {
+                            byte[] bs = new byte[meta.Size + 1];
+                            ns.Read(bs, 0, (int)meta.Size + 1);
+                            string txt = Message.Parse(bs).Text;
                                 //Console.WriteLine(txt);
                                 OnTransferDone?.Invoke(new State(ActionCode.TextReceive, StateCode.Success, txt));
-                            });
-                        }
+                        });
                     }
                 }
-                catch (ChecksumMismatchException e)
-                {
-                    OnTransferError?.Invoke(new State(ActionCode.FileCheck, StateCode.Error, e.Message));
-                }
-            });
+            }
+            catch (ChecksumMismatchException e)
+            {
+                OnTransferError?.Invoke(new State(ActionCode.FileCheck, StateCode.Error, e.Message));
+            }
         }
 
         private void ReceiveFile(IPEndPoint remoteEP, Message meta)
         {
             int continueId = LoadMetaFile(meta);
             UdpSend(remoteEP, new Message { PackID = continueId });
+
             TcpAcceptStream(ns =>
             {
                 using (FileStream metafs = new FileStream(meta.Filename + ".meta", FileMode.Open))
@@ -109,7 +107,7 @@ namespace Common
                         metafs.Write(Utils.GetBytes(data.PackID + 1), 0, 8);
                         fs.Flush(); metafs.Flush();
 
-                        OnPackTransfered?.Invoke(new State(ActionCode.FileReceive, StateCode.Pending, i.ToString()));
+                        OnPackTransfered?.Invoke((i / meta.PackCount));
                     }
                     ns.Read(bs, 0, meta.PackSize + 9);
                     data = Message.Parse(bs);

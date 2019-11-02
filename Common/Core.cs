@@ -33,7 +33,7 @@ namespace Common
 #nullable enable
         public static NewTransferEvent? OnReceivedRequest;
         public static StatusEvent? OnTransferDone;
-        public static StatusEvent? OnPackTransfered;
+        public static ProgressPush? OnPackTransfered;
         public static StatusEvent? OnTransferError;
         public static DeviceFoundEvent? OnDeviceFound;
 #nullable restore
@@ -60,12 +60,11 @@ namespace Common
             client = new UdpClient(PortUsed);
             client.JoinMulticastGroup(MulticastAddr);
         }
-        protected async Task CallWithTimeout(Action action, int miliseconds)
+        protected void CallWithTimeout(Action action, int miliseconds)
         {
-            using CancellationTokenSource cancellation = new CancellationTokenSource(miliseconds);
-            Task task = Task.Run(() => action(), cancellation.Token);
-            await Task.Delay(2000);
-            cancellation.Cancel();
+            //using CancellationTokenSource cancellation = new CancellationTokenSource(miliseconds);
+            Task task = Task.Run(() => action());
+            task.Wait(miliseconds);
         }
         protected CancellationTokenSource CallAtBackground(Action action)
         {

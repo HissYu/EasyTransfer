@@ -12,56 +12,71 @@ namespace Common
     public class Sender : Core
     {
         int PackSize { get => 1024; }
-        public Sender() : base(CoreType.Sender) { }
+        public Sender(ref CancellationTokenSource socketController) : base(CoreType.Sender) {
+            aSocket = socketController;
+        }
 
-        CancellationTokenSource aSocket = null;
+        CancellationTokenSource aSocket;
+        public async void FindDeviceAroundAsync()
+        {
+            aSocket.Cancel();
+            aSocket = new CancellationTokenSource();
+            IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, ReceiverPort);
+            await Task.Run(() =>
+            {
+                FindDeviceAround();
+            }, aSocket.Token);
+        }
         public void FindDeviceAround()
         {
             IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, ReceiverPort);
-            
-            aSocket = CallAtBackground(async () =>
+
+            try
             {
-                try
+                Message MsgSent = new Message();
+                List<Device> devicesFound = new List<Device>();
+                while (true)
                 {
-                    Message MsgSent = new Message();
-                    List<Device> devicesFound = new List<Device>();
-                    while (true)
+                    devicesFound.Clear();
+                    MsgSent.Pin = Utils.GeneratePin();
+                    MsgSent.DeviceName = Utils.GetDeviceName();
+                    UdpMulticastSend(MsgSent);
+
+
+                    CallWithTimeout(() =>
                     {
-                        devicesFound.Clear();
-                        MsgSent.Pin = Utils.GeneratePin();
-                        MsgSent.DeviceName = Utils.GetDeviceName();
-                        UdpMulticastSend(MsgSent);
-
-
-                        await CallWithTimeout(() =>
+                        while (true)
                         {
-                            while (true)
-                            {
-                                UdpMulticastReceive(ref remoteEP,
-                                    (msg) => msg.Type == MsgType.Info && msg.Pin == MsgSent.Pin,
-                                    (msg) =>
-                                    {
-                                        devicesFound.Add(new Device { Addr = remoteEP.Address.ToString(), Name = msg.DeviceName });
-                                    });
-                            }
-                        },3000);
-                        OnDeviceFound?.Invoke(devicesFound);
-                    }
+                            UdpMulticastReceive(ref remoteEP,
+                                (msg) => msg.Type == MsgType.Info && msg.Pin == MsgSent.Pin,
+                                (msg) =>
+                                {
+                                    devicesFound.Add(new Device { Addr = remoteEP.Address.ToString(), Name = msg.DeviceName });
+                                });
+                        }
+                    }, 3000);
+                    OnDeviceFound?.Invoke(devicesFound);
                 }
-                catch (OperationCanceledException)
-                {
-                }
-            });
-            
+            }
+            catch (OperationCanceledException)
+            {
+            }
         }
         public void StopBackgroudWork()
         {
+            //aSocket.Cancel();
+            //aSocket = null;
+        }
+        public async void SendFileAsync(string addr, string filepath)
+        {
             aSocket.Cancel();
-            aSocket = null;
+            aSocket = new CancellationTokenSource();
+
+            await Task.Run(() => SendFile(addr, filepath), aSocket.Token);
         }
         public void SendFile(string addr, string filepath)
         {
-            aSocket?.Cancel();
+            //aSocket?.Cancel();
             //string filename = Path.GetFileName(filepath);
             Message meta = Message.CreateMeta(filepath, PackSize);
             string status = "";
@@ -99,7 +114,7 @@ namespace Common
                         ns.Flush();
                         dataMsg.PackID++;
 
-                        OnPackTransfered?.Invoke(new State(ActionCode.FilePackProgress, StateCode.Pending, fs.Position.ToString()));
+                        OnPackTransfered?.Invoke((fs.Position/fs.Length));
                     }
                     fs.Read(dataMsg.Data, 0, (int)(fs.Length - fs.Position));
                     bs = dataMsg.ToBytes();
@@ -118,9 +133,16 @@ namespace Common
                 throw e;
             }
         }
+        public async void SendTextAsync(string addr,string text)
+        {
+            aSocket.Cancel();
+            aSocket = new CancellationTokenSource();
+
+            await Task.Run(() => SendText(addr, text), aSocket.Token);
+        }
         public void SendText(string addr, string text)
         {
-            aSocket?.Cancel();
+            //aSocket?.Cancel();
             Message message = new Message { Text = text };
             try
             {

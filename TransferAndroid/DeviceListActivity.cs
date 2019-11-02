@@ -42,7 +42,7 @@ namespace TransferAndroid
             devicelist.SetLayoutManager(dlLayoutManager);
 
             //deviceListAdapter = new Resources.layout.DeviceListAdapter(devices);
-            s.FindDeviceAround();
+            s.FindDeviceAroundAsync();
             deviceListAdapter.ItemLongClick += OnItemLongClick;
             devicelist.SetAdapter(deviceListAdapter);
         }
