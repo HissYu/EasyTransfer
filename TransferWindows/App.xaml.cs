@@ -6,6 +6,7 @@ using System.Data;
 using System.Linq;
 using System.Threading.Tasks;
 using System.Windows;
+using Common;
 
 namespace TransferWindows
 {
@@ -18,8 +19,8 @@ namespace TransferWindows
 
     internal class Status : INotifyPropertyChanged
     {
-        public string DeviceName { get => devicename; set { devicename = value;OnPropertyChanged(); } }
-        string devicename;
+        public Device Device { get => devicename; set { devicename = value;OnPropertyChanged(); } }
+        Device devicename;
         public string FileName { get=>filename; set { filename = value;OnPropertyChanged(); } }
         string filename;
         public double? Current { get=>current; set { current = value;OnPropertyChanged(); } }
@@ -39,7 +40,7 @@ namespace TransferWindows
         }
         public void Update(Status status)
         {
-            DeviceName = status.DeviceName ?? this.DeviceName;
+            Device = status.Device ?? this.Device;
             FileName = status.FileName ?? this.FileName;
             Current = status.Current ?? this.Current;
             PackCount = status.PackCount ?? this.PackCount;

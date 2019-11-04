@@ -32,6 +32,7 @@ namespace Transfer
                 }
             };
             Receiver receiver = new Receiver();
+            receiver.StartAnnouncing();
             receiver.StartWorking();
             //while (true)
             //{

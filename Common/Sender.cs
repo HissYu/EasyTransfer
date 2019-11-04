@@ -12,25 +12,45 @@ namespace Common
     public class Sender : Core
     {
         int PackSize { get => 1024; }
-        public Sender(ref CancellationTokenSource socketController) : base(CoreType.Sender) {
-            aSocket = socketController;
+        public Sender() : base(CoreType.Sender) {
+            UdpGlobalReceive();
         }
 
-        CancellationTokenSource aSocket;
         public async void FindDeviceAroundAsync()
         {
-            aSocket.Cancel();
-            aSocket = new CancellationTokenSource();
-            IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, ReceiverPort);
-            await Task.Run(() =>
+            try
             {
-                FindDeviceAround();
-            }, aSocket.Token);
+                List<Device> devicesFound = new List<Device>();
+                while (true)
+                {
+                    devicesFound.Clear();
+
+                    TaskCompletionSource<bool> gotMsg = new TaskCompletionSource<bool>();
+                    UdpReceived ev = (remote, arg) =>
+                    {
+                        if (arg.Handled)
+                            return;
+                        var msg = arg.Mess;
+                        if (msg.Type == MsgType.Info && msg.Pin == 100000)
+                        {
+                            devicesFound.Add(new Device { Addr = remote.Address.ToString(), Name = msg.DeviceName, Time = DateTime.Now });
+                            gotMsg.SetResult(true);
+                        }
+                    };
+                    OnUdpReceived += ev;
+
+                    await gotMsg.Task;
+                    OnUdpReceived -= ev;
+                    
+                    OnDeviceFound?.Invoke(devicesFound);
+                }
+            }
+            catch (OperationCanceledException)
+            {
+            }
         }
         public void FindDeviceAround()
         {
-            IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, ReceiverPort);
-
             try
             {
                 Message MsgSent = new Message();
@@ -42,17 +62,13 @@ namespace Common
                     MsgSent.DeviceName = Utils.GetDeviceName();
                     UdpMulticastSend(MsgSent);
 
-
                     CallWithTimeout(() =>
                     {
                         while (true)
                         {
-                            UdpMulticastReceive(ref remoteEP,
+                            WaitMessage(
                                 (msg) => msg.Type == MsgType.Info && msg.Pin == MsgSent.Pin,
-                                (msg) =>
-                                {
-                                    devicesFound.Add(new Device { Addr = remoteEP.Address.ToString(), Name = msg.DeviceName });
-                                });
+                                (remote, msg) => devicesFound.Add(new Device { Addr = remote.Address.ToString(), Name = msg.DeviceName }));
                         }
                     }, 3000);
                     OnDeviceFound?.Invoke(devicesFound);
@@ -69,10 +85,59 @@ namespace Common
         }
         public async void SendFileAsync(string addr, string filepath)
         {
-            aSocket.Cancel();
-            aSocket = new CancellationTokenSource();
+            Message meta = Message.CreateMeta(filepath, PackSize);
+            string status = "";
+            long continueId = 0;
+            try
+            {
+                status = "Wait Confirmation";
+                IPEndPoint remoteEP = new IPEndPoint(IPAddress.Parse(addr), ReceiverPort);
+                UdpSend(remoteEP, meta);
 
-            await Task.Run(() => SendFile(addr, filepath), aSocket.Token);
+                await WaitMessage(
+                    msg => msg.Type == MsgType.Continue,
+                    (remoteEP, msg) => continueId = msg.PackID);
+
+                if (continueId == -1)
+                {
+                    OnTransferError?.Invoke(new State(ActionCode.FileSend, StateCode.Error, "Request rejected"));
+                    return;
+                }
+
+                remoteEP.Port = TransferPort;
+                status = "Transferring";
+
+                TcpSetupStream(remoteEP, ns =>
+                {
+                    using FileStream fs = new FileStream(filepath, FileMode.Open, FileAccess.Read);
+                    byte[] bs = null;
+                    Message dataMsg = new Message { PackID = continueId, Data = new byte[PackSize] };
+                    fs.Seek((continueId - 1) * PackSize, SeekOrigin.Begin);
+                    while (fs.Length - fs.Position > PackSize)
+                    {
+                        fs.Read(dataMsg.Data, 0, PackSize);
+                        bs = dataMsg.ToBytes();
+                        ns.Write(bs, 0, bs.Length);
+                        ns.Flush();
+                        dataMsg.PackID++;
+
+                        OnPackTransfered?.Invoke((fs.Position / fs.Length));
+                    }
+                    fs.Read(dataMsg.Data, 0, (int)(fs.Length - fs.Position));
+                    bs = dataMsg.ToBytes();
+                    ns.Write(bs, 0, bs.Length);
+                    ns.Flush();
+                });
+                OnTransferDone?.Invoke(new State(ActionCode.FileSend, StateCode.Success, ""));
+            }
+            catch (OperationCanceledException)
+            {
+                OnTransferError?.Invoke(new State(ActionCode.FileSend, StateCode.Error, status + " Timeout"));
+            }
+            catch (SocketException e)
+            {
+                OnTransferError?.Invoke(new State(ActionCode.FileSend, StateCode.Error, e.Message));
+            }
         }
         public void SendFile(string addr, string filepath)
         {
@@ -86,10 +151,11 @@ namespace Common
                 status = "Wait Confirmation";
                 IPEndPoint remoteEP = new IPEndPoint(IPAddress.Parse(addr),ReceiverPort);
                 UdpSend(remoteEP, meta);
-                
+
+                remoteEP.Address = IPAddress.Any;
                 UdpReceive(ref remoteEP,
-                    (msg) => msg.Type == MsgType.Continue,
-                    (msg) => continueId = msg.PackID);
+                    msg => msg.Type == MsgType.Continue,
+                    msg => continueId = msg.PackID);
 
                 if (continueId == -1)
                 {
@@ -130,15 +196,11 @@ namespace Common
             catch (SocketException e)
             {
                 OnTransferError?.Invoke(new State(ActionCode.FileSend, StateCode.Error, e.Message));
-                throw e;
             }
         }
         public async void SendTextAsync(string addr,string text)
         {
-            aSocket.Cancel();
-            aSocket = new CancellationTokenSource();
-
-            await Task.Run(() => SendText(addr, text), aSocket.Token);
+            await Task.Run(() => SendText(addr, text));
         }
         public void SendText(string addr, string text)
         {

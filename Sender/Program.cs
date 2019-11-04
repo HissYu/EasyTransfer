@@ -9,10 +9,9 @@ namespace Transfer
 {
     class Program
     {
-        static CancellationTokenSource current = new CancellationTokenSource();
         static void Main(string[] args)
         {
-            Sender sender = new Sender(ref current);
+            Sender sender = new Sender();
             Core.OnDeviceFound += (devices) =>
             {
                 (devices as List<Device>).ForEach((e) =>

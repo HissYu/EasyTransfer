@@ -13,7 +13,7 @@ namespace Common
     {
         Sender, Receiver
     }
-    public class Core
+    public class Core : IDisposable
     {
         protected const int ReceiverPort = 37384;
         protected const int SenderPort = 38384;
@@ -31,6 +31,8 @@ namespace Common
 
         //public static Action<State> UpdateState;
 #nullable enable
+        public event UdpReceived OnUdpReceived;
+
         public static NewTransferEvent? OnReceivedRequest;
         public static StatusEvent? OnTransferDone;
         public static ProgressPush? OnPackTransfered;
@@ -66,6 +68,12 @@ namespace Common
             Task task = Task.Run(() => action());
             task.Wait(miliseconds);
         }
+        protected async Task CallAsyncWithTimeout(Action action, int miliseconds)
+        {
+            Task task = Task.Run(() => action());
+            task.Wait(miliseconds);
+            await Task.Delay(miliseconds);
+        }
         protected CancellationTokenSource CallAtBackground(Action action)
         {
             CancellationTokenSource cancellation = new CancellationTokenSource();
@@ -76,9 +84,45 @@ namespace Common
         protected void UdpSend(IPEndPoint remoteEP, Message msg)
         {
             byte[] bs = msg.ToBytes();
-            
+
             client.Send(bs, bs.Length, remoteEP);
-            
+
+        }
+
+        protected void UdpGlobalReceive()
+        {
+            IPEndPoint anyEP = new IPEndPoint(IPAddress.Any, PortUnused);
+            Task.Run(() =>
+            {
+                while (true)
+                {
+                    anyEP.Address = IPAddress.Any;
+                    byte[] receive = client.Receive(ref anyEP);
+                    if (Message.TryParse(receive, out Message recMessage))
+                    {
+                        OnUdpReceived?.Invoke(anyEP, new UdpReceivedArg { Handled = false, Mess = recMessage });
+                    }
+                }
+            });
+        }
+        protected async Task WaitMessage(Predicate<Message> predicate, Action<IPEndPoint,Message> callback = null)
+        {
+            TaskCompletionSource<bool> gotMsg = new TaskCompletionSource<bool>();
+            UdpReceived ev = (remote, arg) =>
+            {
+                if (arg.Handled)
+                    return;
+                if (predicate(arg.Mess))
+                {
+                    callback?.Invoke(remote, arg.Mess);
+                    gotMsg.SetResult(true);
+                }
+
+            };
+            OnUdpReceived += ev;
+
+            await gotMsg.Task;
+            OnUdpReceived -= ev;
         }
         protected void UdpReceive(ref IPEndPoint remoteEP, Predicate<Message> condition, Action<Message> callback)
         {
@@ -135,6 +179,11 @@ namespace Common
             streamAction(ns);
             ns.Close();
             listener.Stop();
+        }
+
+        public void Dispose()
+        {
+            client.Dispose();
         }
     }
 

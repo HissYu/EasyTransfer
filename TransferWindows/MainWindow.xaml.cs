@@ -25,21 +25,39 @@ namespace TransferWindows
     {
         private Sender sender;
         //private Receiver receiver = new Receiver();
-        private CancellationTokenSource current;
-        private Status status = new Status { DeviceName = "test", FileName = "file Test", Current = 0, PackCount = 100 };
+        private Status status = new Status { Device = new Device { }, FileName = "", Current = 0, PackCount = 100 };
 
+        private TaskCompletionSource<bool> deviceSelected;
         public MainWindow()
         {
             InitializeComponent();
             
-            current = new CancellationTokenSource();
-            sender = new Sender(ref current);
+            
+            sender = new Sender();
 
             StatusBar.DataContext = status;
-            
-            
+
+            DeviceRemoval();
             BindEvent();
             StartBackground();
+        }
+
+        private async void DeviceRemoval()
+        {
+            await Task.Run(() =>
+            {
+                while (true)
+                {
+                    Thread.Sleep(1000);
+                    List<Device> t = AroundDeviceList.ItemsSource as List<Device>;
+                    if (t == null) continue;
+                    t = t.AsParallel().Where(device => device.Time >= DateTime.Now.AddSeconds(-4)).ToList();
+                    AroundDeviceList.Dispatcher.Invoke(() =>
+                    {
+                        AroundDeviceList.ItemsSource = t;
+                    });
+                }
+            }).ConfigureAwait(false);
         }
 
         private void BindEvent()
@@ -47,9 +65,10 @@ namespace TransferWindows
             Core.OnDeviceFound += (List<Device> devices) => {
                 if (devices.Count>0)
                 {
+
                     AroundDeviceList.Dispatcher.Invoke(() =>
                     {
-                        AroundDeviceList.ItemsSource = devices;
+                        AroundDeviceList.ItemsSource = devices.Concat((AroundDeviceList.ItemsSource as List<Device>)??new List<Device>());
                     });
                 }
             };
@@ -63,50 +82,56 @@ namespace TransferWindows
             {
                 status.Update(new Status { Current = process });
             };
+            Core.OnTransferError += (state) =>
+            {
+                MessageBox.Show(state.Data);
+            };
         }
 
         private void StartBackground()
         {
+            
             sender.FindDeviceAroundAsync();
             //receiver.StartWorking();
         }
 
-        private void SendClipboardButton_Click(object sender, RoutedEventArgs e)
+        private async void SendClipboardButton_Click(object sender, RoutedEventArgs e)
         {
-            if (AroundDeviceList.SelectedItem == null)
-            {
-                MessageBox.Show("You need to select a device to send to!");
-                return;
-            }
             if (!Clipboard.ContainsText())
             {
                 MessageBox.Show("No text exists in clipboard!");
             }
-            string addr = (AroundDeviceList.SelectedItem as Device).Addr;
+            
             string clipb = Clipboard.GetText();
 
+            MessageBox.Show("Choose a device.");
+            deviceSelected = new TaskCompletionSource<bool>();
+            await deviceSelected.Task;
+            string addr = (AroundDeviceList.SelectedItem as Device).Addr;
+            deviceSelected = null;
             this.sender.SendTextAsync(addr, clipb);
-            //StopButton.IsEnabled = true;
         }
 
-        private void SendFileButton_Click(object sender, RoutedEventArgs e)
+        private async void SendFileButton_Click(object sender, RoutedEventArgs e)
         {
-            if (AroundDeviceList.SelectedItem == null)
-            {
-                MessageBox.Show("You need to select a device to send to!");
-                return;
-            }
-            string addr = (AroundDeviceList.SelectedItem as Device).Addr;
+            
 
-            OpenFileDialog dlg = new OpenFileDialog();
-            dlg.Filter = "All Files (*.*)|*.*";
+            OpenFileDialog dlg = new OpenFileDialog
+            {
+                Filter = "All Files (*.*)|*.*"
+            };
 
             bool? result = dlg.ShowDialog();
             if (result == true)
             {
                 string filename = dlg.FileName;
                 status.Update(new Status { FileName = System.IO.Path.GetFileName(filename) });
-                
+
+                MessageBox.Show("Choose a device.");
+                deviceSelected = new TaskCompletionSource<bool>();
+                await deviceSelected.Task;
+                string addr = (AroundDeviceList.SelectedItem as Device).Addr;
+                deviceSelected = null;
                 this.sender.SendFileAsync(addr, filename);
                 StopButton.IsEnabled = true;
             }
@@ -122,7 +147,8 @@ namespace TransferWindows
 
         private void AroundDeviceList_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            status.Update(new Status { DeviceName = ((sender as ListBox).SelectedItem as Device)?.Name });
+            status.Update(new Status { Device = ((sender as ListBox).SelectedItem as Device) });
+            deviceSelected?.SetResult(true);
         }
     }
 }

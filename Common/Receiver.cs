@@ -6,6 +6,7 @@ using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using System.Threading;
+using System.Threading.Tasks;
 
 namespace Common
 {
@@ -28,26 +29,34 @@ namespace Common
     {
         public Receiver() : base(CoreType.Receiver) { }
         //CancellationTokenSource backgroundWorkHandler;
-        CancellationTokenSource aSocket;
+        
 
+        public async void StartAnnouncing()
+        {
+            Message announcement = new Message { DeviceName = Utils.GetDeviceName(), Pin = 100000 };
+            await Task.Run(() =>
+            {
+                while (true)
+                {
+                    UdpMulticastSend(announcement);
+                    Thread.Sleep(2000);
+                }
+            }).ConfigureAwait(false);
+        }
         public void StartWorking()
         {
             try
             {
-                IPEndPoint remoteEP = new IPEndPoint(MulticastAddr, SenderPort);
                 while (true)
                 {
+                    IPEndPoint remoteEP = new IPEndPoint(IPAddress.Any, SenderPort);
                     Message meta = null;
                     bool isText = false;
-                    UdpMulticastReceive(ref remoteEP,
-                        msg => msg.Type != MsgType.Invalid,
+                    UdpReceive(ref remoteEP,
+                        msg => { Console.WriteLine(msg); return msg.Type != MsgType.Invalid; },
                         msg =>
                         {
-                            if (msg.Type == MsgType.Info)
-                            {
-                                UdpMulticastSend(new Message { Pin = msg.Pin, DeviceName = Utils.GetDeviceName() });
-                            }
-                            else if (msg.Type == MsgType.Meta)
+                            if (msg.Type == MsgType.Meta)
                             {
                                 if (OnReceivedRequest(msg, Message.IsText(msg)))
                                 {

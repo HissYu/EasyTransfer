@@ -1,4 +1,6 @@
-﻿using System.Collections.Generic;
+﻿using System;
+using System.Collections.Generic;
+using System.Net;
 
 namespace Common
 {
@@ -6,19 +8,21 @@ namespace Common
     public delegate void ProgressPush(double progress);
     public delegate void StatusEvent(State newState);
     public delegate void DeviceFoundEvent(List<Device> devices);
-    public class Redirection
+
+    public class UdpReceivedArg
     {
-        public bool Handled = false;
-        public Message Message = null;
-        public Redirection(Message msg)
-        {
-            Message = msg;
-        }
+        public bool Handled { get; set; }
+        public Message Mess { get; set; }
     }
+    public delegate void UdpReceived(IPEndPoint remote, UdpReceivedArg arg);
+    
+    
+
     public class Device
     {
         public string Name { get; set; }
         public string Addr { get; set; }
+        public DateTime Time { get; set; }
     }
     public enum StateCode
     {
@@ -42,9 +46,9 @@ namespace Common
             What = state;
             Data = data;
         }
-        public readonly ActionCode For;
-        public readonly StateCode What;
-        public readonly string Data;
+        public ActionCode For { get; }
+        public StateCode What { get; }
+        public string Data { get; }
     }
     
 }

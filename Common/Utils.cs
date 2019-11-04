@@ -8,7 +8,7 @@ using System.Text.RegularExpressions;
 
 namespace Common
 {
-    public class Utils
+    public static class Utils
     {
         //public static string GetTimestampNow()
         //{

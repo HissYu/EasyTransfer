@@ -44,7 +44,7 @@
                 </ItemsPanelTemplate>
             </StatusBar.ItemsPanel>
             <StatusBarItem Grid.Column="0">
-                <TextBlock x:Name="DNameText" Text="{Binding DeviceName,Mode=OneWay}"/>
+                <TextBlock x:Name="DNameText" Text="{Binding Device.Name,Mode=OneWay}"/>
             </StatusBarItem>
             <Separator Grid.Column="1"/>
             <StatusBarItem Grid.Column="2">
